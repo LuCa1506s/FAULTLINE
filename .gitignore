@@ -1,0 +1,8 @@
+/build*/
+/.tools/
+
+# FAULTLINE Codex Autopilot runtime
+automation/state.json
+automation/runs/
+automation/*.tmp
+.autopilot_backups/

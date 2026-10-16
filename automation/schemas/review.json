@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "phase": {
+      "type": "integer"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "REPAIR",
+        "BLOCKED"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "required_fix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "category",
+          "description",
+          "required_fix"
+        ]
+      }
+    },
+    "evidence_checked": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "canonical_conflicts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "phase",
+    "decision",
+    "summary",
+    "issues",
+    "evidence_checked",
+    "canonical_conflicts"
+  ]
+}
