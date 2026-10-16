@@ -1,42 +1,42 @@
 {
-  "phase_start": 11,
-  "phase_end": 35,
-  "codex_command": "codex",
-  "model": "",
-  "implementation_sandbox": "workspace-write",
-  "review_sandbox": "read-only",
-  "ask_for_approval": "never",
-  "review_enabled": true,
-  "max_repairs_per_phase": 2,
-  "auto_commit": true,
-  "require_clean_git_before_phase": true,
-  "min_seconds_between_codex_calls": 20,
-  "auto_wait_on_rate_limit": true,
-  "rate_limit_wait_schedule_seconds": [
-    1800,
-    3600,
-    7200,
-    7200
-  ],
-  "max_rate_limit_retries_per_call": 8,
-  "codex_timeout_seconds": 21600,
-  "local_fast_gate": true,
-  "build_command": [
-    "powershell",
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    "tools/build.ps1"
-  ],
-  "fast_test_command": [
-    "ctest",
-    "--test-dir",
-    "build",
-    "-C",
-    "Debug",
-    "--output-on-failure",
-    "-L",
-    "fast"
-  ]
+    "phase_start":  11,
+    "phase_end":  35,
+    "codex_command":  "codex",
+    "model":  "",
+    "implementation_sandbox":  "workspace-write",
+    "review_sandbox":  "read-only",
+    "ask_for_approval":  "never",
+    "review_enabled":  true,
+    "max_repairs_per_phase":  2,
+    "auto_commit":  true,
+    "require_clean_git_before_phase":  true,
+    "min_seconds_between_codex_calls":  20,
+    "auto_wait_on_rate_limit":  true,
+    "rate_limit_wait_schedule_seconds":  [
+                                             1800,
+                                             3600,
+                                             7200,
+                                             7200
+                                         ],
+    "max_rate_limit_retries_per_call":  8,
+    "codex_timeout_seconds":  21600,
+    "local_fast_gate":  true,
+    "build_command":  [
+                          "powershell",
+                          "-NoProfile",
+                          "-ExecutionPolicy",
+                          "Bypass",
+                          "-File",
+                          "tools/build.ps1"
+                      ],
+    "fast_test_command":  [
+                              "C:\\Users\\admin\\Documents\\FAULTLINE\\FAULTLINE_GAME_V1\\.tools\\w64devkit\\bin\\ctest.exe",
+                              "--test-dir",
+                              "build",
+                              "-C",
+                              "Debug",
+                              "--output-on-failure",
+                              "-L",
+                              "fast"
+                          ]
 }

@@ -24,7 +24,7 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 def load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 def save_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -60,10 +60,12 @@ def run_process(argv: list[str], *, cwd: Path, input_text: str | None = None,
     if os.name == "nt" and str(resolved).lower().endswith((".cmd", ".bat")):
         return subprocess.run(
             subprocess.list2cmdline(args), cwd=str(cwd), input=input_text,
-            text=True, capture_output=True, timeout=timeout, shell=True, check=False
+            text=True,
+            encoding="utf-8", errors="replace", capture_output=True, timeout=timeout, shell=True, check=False
         )
     return subprocess.run(
         args, cwd=str(cwd), input=input_text, text=True,
+        encoding="utf-8", errors="replace",
         capture_output=True, timeout=timeout, check=False
     )
 
@@ -95,7 +97,7 @@ def phase_title_and_text(phase: int) -> tuple[str, str]:
     if not path.exists():
         raise SystemExit(f"Missing phase contract: {path}")
     text = path.read_text(encoding="utf-8")
-    title = re.sub(r"^#\s*Phase\s+\d+\s*[—-]\s*", "", text.splitlines()[0]).strip()
+    title = re.sub(r"^#\s*Phase\s+\d+\s*[â€”-]\s*", "", text.splitlines()[0]).strip()
     return title, text
 
 def is_rate_limited(cp: subprocess.CompletedProcess[str]) -> bool:
@@ -109,9 +111,10 @@ def codex_call(cfg: dict[str, Any], state: dict[str, Any], *, prompt: str,
     answer.unlink(missing_ok=True)
 
     args = [
-        cfg["codex_command"], "exec",
-        "--sandbox", sandbox,
+        cfg["codex_command"],
         "--ask-for-approval", cfg.get("ask_for_approval", "never"),
+        "exec",
+        "--sandbox", sandbox,
         "--output-schema", str(schema),
         "--output-last-message", str(answer),
     ]
@@ -197,23 +200,72 @@ def run_phase(cfg: dict[str, Any], state: dict[str, Any], phase: int) -> bool:
     phase_dir = RUNS / f"phase-{phase:02d}" / datetime.now().strftime("%Y%m%d-%H%M%S")
     phase_dir.mkdir(parents=True, exist_ok=True)
     print(f"\n=== Phase {phase}: {title} ===")
-    update_state(state, status="implementing", current_phase=phase,
-                 last_message=f"Implementing Phase {phase}: {title}")
+    # Resume a phase after Codex implementation completed but a later local
+    # gate/reviewer/orchestrator step crashed. This avoids spending quota by
+    # re-running the same implementation request.
+    _resume_impl = None
+    _resume_phase_dir = None
+    _phase_root = RUNS / f"phase-{phase:02d}"
+    _phase_root.mkdir(parents=True, exist_ok=True)
 
-    prompt = render_template(
-        PROMPTS / "implementer.txt",
-        phase=phase, title=title, repo_root=ROOT, specs_root=ROOT.parent,
-        next_phase=phase+1, phase_text=phase_text
-    )
-    latest_impl = codex_call(
-        cfg, state, prompt=prompt,
-        schema=SCHEMAS / "implementation.json",
-        answer=phase_dir / "implementation.json",
-        run_dir=phase_dir / "implementation",
-        sandbox=cfg.get("implementation_sandbox", "workspace-write")
-    )
-    save_json(phase_dir / "implementation-result.json", latest_impl)
+    for _candidate in sorted(
+        (p for p in _phase_root.iterdir() if p.is_dir()),
+        key=lambda p: p.name,
+        reverse=True,
+    ):
+        _result_candidates = [
+            _candidate / "implementation-result.json",
+            _candidate / "implementation.json",
+        ]
+        for _result_path in _result_candidates:
+            if not _result_path.exists():
+                continue
+            try:
+                _candidate_impl = load_json(_result_path)
+            except Exception:
+                continue
+            if _candidate_impl.get("phase") != phase:
+                continue
+            if _candidate_impl.get("status") not in ("completed", "failed", "blocked"):
+                continue
+            _resume_impl = _candidate_impl
+            _resume_phase_dir = _candidate
+            break
+        if _resume_impl is not None:
+            break
 
+    if _resume_impl is not None:
+        impl = _resume_impl
+        phase_dir = _resume_phase_dir
+        print(
+            f"[RESUME] Reusing completed Codex implementation from "
+            f"{phase_dir.name}; skipping duplicate implementation call."
+        )
+        update_state(
+            state,
+            status="verifying",
+            current_phase=phase,
+            last_message=f"Resuming Phase {phase} at local gate/review",
+        )
+    else:
+        update_state(state, status="implementing", current_phase=phase,
+                     last_message=f"Implementing Phase {phase}: {title}")
+
+        prompt = render_template(
+            PROMPTS / "implementer.txt",
+            phase=phase, title=title, repo_root=ROOT, specs_root=ROOT.parent,
+            next_phase=phase+1, phase_text=phase_text
+        )
+        latest_impl = codex_call(
+            cfg, state, prompt=prompt,
+            schema=SCHEMAS / "implementation.json",
+            answer=phase_dir / "implementation.json",
+            run_dir=phase_dir / "implementation",
+            sandbox=cfg.get("implementation_sandbox", "workspace-write")
+        )
+        save_json(phase_dir / "implementation-result.json", latest_impl)
+
+    latest_impl = impl
     if latest_impl["status"] == "blocked":
         update_state(state, status="blocked", last_message=latest_impl["summary"])
         print("[BLOCKED]", latest_impl["summary"])
@@ -346,3 +398,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nInterrupted safely. Rerun the same command to resume.")
         raise SystemExit(130)
+
