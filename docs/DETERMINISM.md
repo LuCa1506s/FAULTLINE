@@ -135,7 +135,7 @@ and [FACTION_SIMULATION_M1.md](FACTION_SIMULATION_M1.md).
 
 ## Phase 10 / NPC semantics and save v3
 
-Runtime StateHash now starts with `FAULTLINE.state.v5`. NPC activity, home,
+Phase 10 runtime StateHash started with `FAULTLINE.state.v5`. NPC activity, home,
 optional travel, per-actor deadlines, one operation assignment and fixed-size
 statistics extend the snapshot; generated NpcState field hashing stays frozen.
 Relationships retain their canonical directed-edge ordering. The NPC deadline
@@ -154,6 +154,34 @@ consuming RNG or changing old fields. A real Phase 9 save with eight pending
 operations is retained as a fixed compatibility fixture; its historical section
 bytes must survive migration unchanged. See SAVE_FORMAT_V3.md, NPC_SEMANTIC_M1.md
 and PHASE10_VERIFICATION.md for implementation and actual verification status.
+
+## Phase 11 / territory presence and save v4
+
+Runtime StateHash now uses FAULTLINE.state.v6. Territory rules, sparse causal
+entrenchment, concrete garrison affiliation, the incumbent hysteresis latch,
+derived control state/controller, exactly-once operation consumption and fixed-size
+counters extend the canonical state. The separate control-cache map is excluded.
+No generated field encoding or BaseWorldHash changes; GeneratorVersion stays 3.
+
+Control is derived from effective presence and explicit hysteresis memory. Gain
+margin 80 and hold margin 60 are integer strategic units; contested/uncontrolled
+regions have no controller. Operation outcomes are consumed in OperationId order,
+batched per target and reevaluated in TerritoryId order. One logical transition
+emits one scoped event. No RNG or wall-clock value is used by TerritorySystem.
+
+The shared fixed/headless pipeline resolves operations, applies territory effects,
+reconciles stale operations, performs only due faction evaluation, updates NPCs
+and commits structural changes. AI reads current control, not generation-time
+assignment. Garrison membership never follows a controller flip. Thus operation
+counts/outcomes may change naturally from prior phases; their old runtime hashes
+and 468-operation baseline are historical, not Phase 11 compatibility contracts.
+
+Save v4 appends section 13 and preserves previous section encodings. V1/v2/v3
+migration initializes the saved map deterministically and acknowledges historical
+terminal results without replay. Active operations remain pending for future
+resolution. Presence, hysteresis and the consumption ledger preserve mid-contest
+and day-30-to-year-end continuation. See SAVE_FORMAT_V4.md, TERRITORY_M1.md and
+PHASE11_VERIFICATION.md for actual schema, algorithms and verified results.
 
 ## Source interpretation
 

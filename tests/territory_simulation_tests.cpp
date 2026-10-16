@@ -199,6 +199,9 @@ TEST_CASE("v1 v2 v3 historical saves migrate without RNG consumption or replayin
     for (const char* name : {"save_v1_reference.flsave","save_v2_phase9.flsave","save_v3_phase10.flsave"}) {
         const auto bytes=historical(name);auto x=loadGameState(bytes),y=loadGameState(bytes);
         CHECK(stateHash(x)==stateHash(y));CHECK(saveGameState(x)==saveGameState(y));
+        const auto migrated=saveGameState(x);
+        REQUIRE(migrated.size()>bytes.size());
+        CHECK(std::equal(bytes.begin()+48,bytes.end(),migrated.begin()+48));
         CHECK(x.territorySimulation.statistics.transitions==0);
         for (const auto& [id,t] : x.world.territories.entries()) CHECK(territoryControl(x,id).controller==t.owner);
         for (const auto& [id,op] : x.factionSimulation.operations.entries())
@@ -250,4 +253,15 @@ TEST_CASE("decoder rejects duplicate faction entries and zero/nonbounded presenc
     CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
     bytes=valid;std::fill_n(bytes.begin()+static_cast<std::ptrdiff_t>(pos+40+32+4+8+8+8+4+8),4,0);
     CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
+}
+
+TEST_CASE("FactionSystem resolution alone never writes control or operational foothold") {
+    auto s=fixture();const auto t=target(s);const auto id=attack(s);const auto op=s.factionSimulation.operations.get(id);
+    const auto before=territoryPresence(s,t);FactionEventBuffer events;
+    s.clock=core::SimulationClock{op.activeTick};updateFactionOperations(s,events);events.clear();
+    s.clock=core::SimulationClock{op.resolutionTick};updateFactionOperations(s,events);
+    REQUIRE(s.factionSimulation.operations.get(id).status==OperationStatus::Resolved);
+    CHECK(s.world.territories.get(t).owner==a);CHECK(territoryPresence(s,t)==before);
+    TerritoryEventBuffer changes;applyTerritoryConsequences(s,events.values(),changes);
+    CHECK(territoryPresence(s,t).contains(b));CHECK_NOTHROW(validateState(s));
 }

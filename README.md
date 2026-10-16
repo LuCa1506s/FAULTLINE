@@ -47,7 +47,7 @@ faultline_tests / faultline_persistence_tests (doctest only in tests)
 time and diagnostics. `faultline_world` owns domain/component stores, spatial
 coordinates, indexing, basic streaming and M1/M2/M3 generation/validation.
 `faultline_simulation` owns GameState, Game, tick input, ordered commands,
-domain events, typed structural commit, scheduled aggregate faction operations and
+domain events, typed structural commit, scheduled aggregate faction operations, runtime territorial presence/control and
 semantic NPC activity/travel/relationships/promotion. FixedStepRunner belongs to the app
 boundary. Renderer/platform code cannot enter these libraries.
 Authoritative simulation is single-threaded and independent of windows or input
@@ -86,13 +86,15 @@ generated fields of the selected version and their configuration in canonical or
 
 `faultline_sim` runs playerless aggregate faction strategy (default seed 12345,
 30 game days). It reports resources, attack/defense outcomes, NPC semantic updates,
-travel, operation participation, relationship changes, promotions and StateHash.
+travel, operation participation, relationship changes, promotions, territorial
+transitions and per-faction control counts, plus StateHash.
 `--log-operations` exposes individual transitions. It uses the normal tick pipeline
 at scheduled boundaries and skips only idle ticks; no wall-time sleep is involved.
-No territory ownership, diplomacy, named NPC lifecycle, market or police behavior
-is changed. Details and current limitations are in
+Territory control follows current presence and attack/defense consequences;
+diplomacy, named NPC lifecycle, market and police behavior remain unchanged. Details and current limitations are in
 [docs/FACTION_SIMULATION_M1.md](docs/FACTION_SIMULATION_M1.md) and
-[docs/NPC_SEMANTIC_M1.md](docs/NPC_SEMANTIC_M1.md).
+[docs/NPC_SEMANTIC_M1.md](docs/NPC_SEMANTIC_M1.md), with territorial rules in
+[docs/TERRITORY_M1.md](docs/TERRITORY_M1.md).
 Player input is abstract data; movement/combat systems are later roadmap work.
 The streaming API commits at explicit structural boundaries; game-driven
 streaming focus arrives with the player controller.
@@ -122,7 +124,7 @@ documented in [docs/WORLDGEN_M3.md](docs/WORLDGEN_M3.md).
 Save Foundation uses a separate `faultline_persistence` target, full semantic
 binary saves with versioned headers and bounded little-endian encoding. The
 memory/file API, snapshot policy and actual format are documented in
-[docs/SAVE_FORMAT_V3.md](docs/SAVE_FORMAT_V3.md), with real v1/v2 migration. The
+[docs/SAVE_FORMAT_V4.md](docs/SAVE_FORMAT_V4.md), with real v1/v2/v3 migration. The
 [v1 document](docs/SAVE_FORMAT_V1.md) remains historical reference. The savecheck tool verifies
 round-trip hash/bytes and reports size/timing; it generates no files by default.
 Use `ctest --test-dir build -L persistence --output-on-failure` for save tests.

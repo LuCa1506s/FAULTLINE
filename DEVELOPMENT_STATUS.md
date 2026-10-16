@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 10 - NPC Semantic Simulation completed and verified.
-STOP before Phase 11 review.
+Current phase: Phase 11 - TerritorySystem completed and verified.
+STOP before Phase 12 review.
 
 Completed:
 
@@ -78,21 +78,61 @@ Completed:
   events; transactional ephemeral promotion preserving an existing body and
   runtime NpcId allocator. Generic faction promotion conserves aggregate manpower.
   Named participation grants no extra aggregate force or random named casualties.
-* SaveFormatVersion is now 3, with real v1/v2 migration, a fixed Phase 9 active-op
+* Phase 10 introduced SaveFormatVersion 3, with real v1/v2 migration, a fixed Phase 9 active-op
   save fixture, NPC travel/scheduler/assignment persistence and StateHash schema v5.
-  GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 11 logic added.
+  GeneratorVersion remains 3; GameVersion remains 0.1.0.
 
-In progress: none. Phase 10 is ready for review.
+* Phase 11: sparse integer territorial footholds, separate actual garrison
+  membership, derived CONTROLLED/CONTESTED/UNCONTROLLED and gain/hold hysteresis;
+  event-driven exactly-once attack/defense consequences and scoped control events.
+  Faction strategy reads current control; stale operations cancel and release
+  commitments. No faction-owned-territory list, soldier transfer on capture or
+  forced single-success owner switch. Initial generated/saved maps are preserved.
+* SaveFormatVersion is now 4, with real v1/v2/v3 migration, fixed active-operation
+  fixtures, territory/hysteresis/consumption persistence and StateHash schema v6.
+  GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-Next: Phase 11 / TerritorySystem after review: presence, CONTROLLED/CONTESTED/
-UNCONTROLLED and control reevaluation. Do not start it automatically.
+In progress: none. Phase 11 is ready for review.
 
-Known blockers: none for the verified targets. Earlier Windows Application Control
-startup denials were recorded. After the user changed the execution environment,
-the full gate and actual CLI checks passed normally; no security policy changes
-or bypass were performed by this agent.
+Next: Phase 12 / District Market M1 after review: demand/supply, dealer capacity,
+market shares, bounded prices and faction income. Do not start automatically.
 
-## Phase 10 verification
+Known blockers: none. No unresolved project warnings/errors. Historical Windows
+execution-policy startup blocks were resolved before the successful current gates;
+this agent did not modify security settings or bypass blocked executables.
+
+## Phase 11 verification
+
+* Final canonical tools/build.ps1 PASS, exit 0. C++20 / GCC 16.2.0 / Ninja / Debug;
+  CTest 12/12 PASS in 319.46 s. Fast-label portion 22.05 s; persistence 11.86 s.
+* Doctest 119 cases / 219398 assertions PASS: foundation 49/210838, persistence
+  15/4124, factions 15/403, NPC 20/511, territory 20/3522. Territory label added;
+  historical coverage retained/adapted for the new authority and control behavior.
+* Seed 12345 / 30 days PASS: 508 operations (+40 from static-map baseline),
+  49 controller changes, 15 contested transitions; final FactionIds 1..5:
+  17/0/18/5/0 controlled, one contested, zero uncontrolled. StateHash c5c174fb61dc193.
+* Seed 12345 / 365 days PASS: 648 operations, none pending/committed, 60 controller
+  changes; 21/0/19/1/0 controlled, no contested/uncontrolled. StateHash
+  48c3ef5c0b1eecea. All 22 major NPCs remain alive; no faction is collapsed/deleted.
+* Seeds 1..250 x 30 days PASS: 124.988 s / 499.953 ms per seed; control changes
+  mean 33.404, range 1..77; 147 factions reach zero control; max final share 84.61%.
+  Seeds 1..25 x 365 days PASS: 32.912 s / 1316.48 ms per seed; mean 80.44 changes,
+  range 37..133; 62 factions reach zero; max final share 100%. Zero static worlds
+  in both batches. Dominance is reported, not suppressed by artificial caps.
+* Mid-contest and post-capture round-trip/continuation PASS. V1/v2/v3 migrations
+  preserve old section bytes and RNG without replaying past effects. Actual
+  day-30 save + 335 days equals uninterrupted year-end hash and every save byte.
+  Independent 30-day processes have identical complete stdout.
+* Worldgen 1..1000 PASS: 137.624 s. Direct CLI/regression/process checks preserve
+  seed 12345 v1 2938f0ca42162bc9, v2 5f3a446fe0d2f974, v3 888c5dbd10c15886.
+* Standalone samples: 30 days without save 563.749 ms; with save 761.526 ms;
+  365 days including save 2033.393 ms. Initial v4 save 968833 bytes, memory
+  encode 108.927 ms / load 96.803 ms including validation/rebuild. Day-30
+  1023945 bytes; year-end 1039157 bytes. Tool timings are not simulation state.
+* Algorithms, limitations, exact commands, outputs and complete file inventory:
+  docs/TERRITORY_M1.md, docs/SAVE_FORMAT_V4.md, docs/PHASE11_VERIFICATION.md.
+
+## Historical Phase 10 verification
 
 * Canonical tools/build.ps1 PASS, exit 0; C++20 / GCC 16.2.0 / Ninja / Debug;
   no unresolved project warnings/errors. Full CTest 11/11 PASS in 277.30 s.
@@ -226,4 +266,4 @@ interiors; large block interiors can remain vacant. Initial control is connected
 resource-backed and may leave neutral territories. Relationships encode baseline
 context; no four-year history or runtime political/market simulation exists.
 Phase 9 verifies playerless aggregate operations/resources for Gate D; broader
-territory/NPC/market consequences remain in their roadmap phases.
+territory/NPC consequences are now verified; market remains its next roadmap phase.

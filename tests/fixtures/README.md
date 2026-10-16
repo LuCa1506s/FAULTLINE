@@ -29,3 +29,13 @@ SHA-256: `2e5e5772efdf86446261028aee9679179a01f5a5d328590d3bf187afdc899e92`.
 Tests read this fixed v2 binary and verify that all eleven historical section
 payloads survive migration byte for byte before exercising resumed simulation.
 Do not regenerate the fixture with the current encoder to mask incompatibility.
+
+## Phase 10 v3 fixture
+
+`save_v3_phase10.flsave` is the actual Phase 10 seed-12345 day-30 save, copied
+before Phase 11 implementation: 1013953 bytes, 468 operation records, eight
+pending operations, persisted NPC semantic assignments/schedules and RNG state.
+SHA-256: `1c920638681da448228c3e91a9a167f06a4a77996889164ffefc7930dbc0e0c2`.
+Phase 11 tests load it under v4, verify deterministic initialization and consume
+future operations without replaying past consequences. Do not regenerate it
+with the current writer to mask compatibility regressions.

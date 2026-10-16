@@ -1,7 +1,15 @@
 # Session file inventory
 
 The initial Phase 0 session started from an empty working directory. This index
-lists the source files now present, including the Phase 10 additions.
+lists the source files now present, including the Phase 11 additions.
+
+Phase 11 added the three territory simulation files, schema_v4.hpp, territory
+tests, a frozen real Phase 10 v3 save fixture and three territory/v4/verification
+documents listed below. Modified files are enumerated in PHASE11_VERIFICATION.md:
+runtime/faction orchestration, persistence, foundational world validation,
+simulator statistics, regression tests and technical documentation. All gates
+passed; STOP before Phase 12 review. Generated algorithms/parent canonical files
+and unrelated README_FIRST.txt, install.ps1 and payload/ were left untouched.
 
 Phase 10 added the three NPC simulation files, schema_v3.hpp, NPC tests, the real
 Phase 9 v2 save fixture and NPC/v3/verification documentation listed below.
@@ -66,6 +74,9 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 * `docs/SAVE_FORMAT_V3.md`
 * `docs/NPC_SEMANTIC_M1.md`
 * `docs/PHASE10_VERIFICATION.md`
+* `docs/TERRITORY_M1.md`
+* `docs/SAVE_FORMAT_V4.md`
+* `docs/PHASE11_VERIFICATION.md`
 
 ## Engine
 
@@ -74,6 +85,7 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 * `src/persistence/schema_v1.hpp`
 * `src/persistence/schema_v2.hpp`
 * `src/persistence/schema_v3.hpp`
+* `src/persistence/schema_v4.hpp`
 * `src/persistence/save.cpp`
 * `src/simulation/factions/faction_state.hpp`
 * `src/simulation/factions/faction_system.hpp`
@@ -81,6 +93,9 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 * `src/simulation/npc/npc_state.hpp`
 * `src/simulation/npc/npc_system.hpp`
 * `src/simulation/npc/npc_system.cpp`
+* `src/simulation/territory/territory_state.hpp`
+* `src/simulation/territory/territory_system.hpp`
+* `src/simulation/territory/territory_system.cpp`
 
 * `src/core/id/id.hpp`
 * `src/core/rng/stable_hash.hpp`
@@ -136,10 +151,12 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 * `tests/persistence_tests.cpp`
 * `tests/faction_simulation_tests.cpp`
 * `tests/npc_simulation_tests.cpp`
+* `tests/territory_simulation_tests.cpp`
 * `tests/legacy_save_v1.hpp`
 * `tests/fixtures/create_v1_reference.ps1`
 * `tests/fixtures/save_v1_reference.flsave`
 * `tests/fixtures/save_v2_phase9.flsave`
+* `tests/fixtures/save_v3_phase10.flsave`
 * `tests/fixtures/README.md`
 * `tests/determinism/simulation_process.cmake`
 * `tests/determinism/worldgen_process.cmake`
