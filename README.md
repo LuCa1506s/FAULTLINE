@@ -127,7 +127,23 @@ documented in [docs/WORLDGEN_M3.md](docs/WORLDGEN_M3.md).
 Save Foundation uses a separate `faultline_persistence` target, full semantic
 binary saves with versioned headers and bounded little-endian encoding. The
 memory/file API, snapshot policy and actual format are documented in
-[docs/SAVE_FORMAT_V6.md](docs/SAVE_FORMAT_V6.md), with real v1/v2/v3/v4/v5 migration. The
+[docs/SAVE_FORMAT_V7.md](docs/SAVE_FORMAT_V7.md), with real v1/v2/v3/v4/v5/v6 migration. The
 [v1 document](docs/SAVE_FORMAT_V1.md) remains historical reference. The savecheck tool verifies
 round-trip hash/bytes and reports size/timing; it generates no files by default.
 Use `ctest --test-dir build -L persistence --output-on-failure` for save tests.
+
+
+Phase 13 adds `faultline_history`, a headless four-year structural transition:
+
+```powershell
+build/faultline_history.exe --seed 12345 --fixture-prologue --replay --save build/history.flsave
+build/faultline_sim.exe --load build/history.flsave --days 365
+```
+
+Fresh tool generation explicitly uses synthetic prologue evidence; the real FIRST
+DELIVERY mission remains Phase 16. HistoryVersion 1 uses 48 monthly strategic
+steps, daily coarse market accounting, paid dealer spread, actual garrison
+settlement and causal political/personal relationships. All five factions enter
+a viable, city-wide market with unresolved tensions. Monthly checkpoints save
+and resume exactly. See [STRATEGIC_HISTORY.md](docs/STRATEGIC_HISTORY.md) and
+[PHASE13_VERIFICATION.md](docs/PHASE13_VERIFICATION.md). Phase 14 is not started.

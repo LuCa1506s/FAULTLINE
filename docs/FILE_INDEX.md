@@ -219,3 +219,28 @@ conservation including real income and operation spending.
 Generated commands/logs/saves use `build/phase12-*`. No generated-world algorithm,
 historical fixture or parent canonical document is modified. Stop after Phase 12;
 Phase 13 history and dealer spread are not implemented.
+
+
+## Phase 13 / Four-Year Strategic History
+
+New source and verification files:
+
+* `src/simulation/history/history_state.hpp` - versioned prologue evidence and compressed records.
+* `src/simulation/history/history_system.hpp` - explicit transition and validation API.
+* `src/simulation/history/history_system.cpp` - monthly causal strategy / daily market history.
+* `src/persistence/schema_v7.hpp` - history-only section field encoding.
+* `tools/history/main.cpp` - generated transition, checkpoints, replay and mass-seed tool.
+* `tests/history_tests.cpp` - prologue, conservation, persistence, corruption and continuation;
+  custom territory presence limits, preserved entrenchment and monthly checkpoint resume.
+* `tests/determinism/history_process.cmake` - independent-process equality gate.
+* `tests/fixtures/save_v6_phase12.flsave` - frozen real Phase 12 day-30 save.
+* `docs/STRATEGIC_HISTORY.md` - algorithm, invariants, commands and scope.
+* `docs/SAVE_FORMAT_V7.md` - exact appended wire schema and real v6 migration.
+* `docs/PHASE13_VERIFICATION.md` - commands, actual results and limitations.
+
+Modified existing files: CMakeLists.txt; runtime/game_state.hpp and game.cpp;
+market/market_system.hpp and market_system.cpp; persistence/save.hpp and save.cpp;
+README.md; tests/fixtures/README.md; docs/DETERMINISM.md; DEVELOPMENT_STATUS.md
+and this index. Existing tests and canonical BaseWorldHash fixtures are preserved.
+Generated logs/saves use `build/phase13-*`. No parent canonical file is changed.
+Stop after Phase 13; Phase 14 is not implemented.

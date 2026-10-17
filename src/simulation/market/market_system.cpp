@@ -77,6 +77,7 @@ void calculate(GameState& state,bool pay) {
     }
 }
 }
+void refreshMarkets(GameState& state) { calculate(state,false); }
 void registerMarketDealer(GameState& state,NpcId id,TerritoryId territory,std::uint32_t capacity) {
     const auto& n=state.world.npcs.get(id);
     core::require(n.roles.has(world::NpcRole::Dealer) && n.faction && state.world.factions.exists(n.faction) &&

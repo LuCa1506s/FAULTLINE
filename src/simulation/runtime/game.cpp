@@ -3,6 +3,7 @@
 #include "simulation/npc/npc_system.hpp"
 #include "simulation/territory/territory_system.hpp"
 #include "simulation/market/market_system.hpp"
+#include "simulation/history/history_system.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -48,6 +49,7 @@ void validateState(const GameState& state) {
     simulation::validateFactionSimulation(state);
     simulation::validateNpcSimulation(state);
     simulation::validateMarketSimulation(state);
+    simulation::validateStrategicHistory(state);
     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
@@ -67,7 +69,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v8"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v9"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)
@@ -77,6 +79,7 @@ std::uint64_t stateHash(const GameState& state) {
     simulation::appendNpcSimulationHash(hash,state);
     simulation::appendTerritorySimulationHash(hash,state);
     simulation::appendMarketSimulationHash(hash,state);
+    simulation::appendStrategicHistoryHash(hash,state);
     return hash.value();
 }
 void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
@@ -93,6 +96,7 @@ std::vector<GameCommand> CommandQueue::take(std::uint64_t tick) {
     return result;
 }
 void Simulation::tick(GameState& state, const TickInput& input) {
+    core::require(!state.history.version || state.history.months==simulation::historyMonths,"Finish strategic history before runtime simulation");
     core::require(input.tick == state.clock.tick(), "Tick input mismatch");
     core::require(state.clock.tick() < core::SimulationClock::maxTick, "Tick counter exhausted");
     core::require(std::isfinite(input.player.moveX) && std::isfinite(input.player.moveZ) &&
@@ -120,6 +124,7 @@ void Simulation::tick(GameState& state, const TickInput& input) {
 }
 void Simulation::advanceHeadless(GameState& state, std::uint64_t ticks,
     const std::function<void(const simulation::FactionOperationEvent&)>& observe) {
+    core::require(!state.history.version || state.history.months==simulation::historyMonths,"Finish strategic history before runtime simulation");
     core::require(state.world.entities.entries().empty(),"Coarse headless advancement requires no physical entities");
     core::require(ticks<=core::SimulationClock::maxTick-state.clock.tick(),"Headless duration overflow");
     const auto end=state.clock.tick()+ticks;

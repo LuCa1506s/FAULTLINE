@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 12 - Market M1 completed and verified.
-Stop after Phase 12; do not begin Phase 13.
+Current phase: Phase 13 - Four-Year Strategic History completed and verified.
+Stop after Phase 13; do not begin Phase 14.
 
 Completed:
 
@@ -94,9 +94,9 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 12 is ready for review.
+In progress: none. Phase 13 is ready for review.
 
-Next: Phase 13 / Four-year history after Phase 12 review. Do not start automatically.
+Next: Phase 14 / Story Graph Foundation after Phase 13 review. Do not start automatically.
 
 Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
@@ -304,8 +304,9 @@ verified for streaming and Phase 8 semantic save/load. M1 validation
 does not claim validation of the complete future sandbox. Geometric limits:
 orthogonal rectangular polygons, flat geography, one building per parcel, no
 interiors; large block interiors can remain vacant. Initial control is connected,
-resource-backed and may leave neutral territories. Relationships encode baseline
-context; no four-year history or runtime political simulation exists; Phase 12 adds runtime markets.
+resource-backed and may leave neutral territories. At the Phase 11 checkpoint, relationships encoded baseline
+context and no four-year history existed. Phase 12 added runtime markets;
+Phase 13 adds compressed strategic history and causal political evolution.
 Phase 9 verifies playerless aggregate operations/resources for Gate D; broader
 territory/NPC consequences are now verified; market is implemented in Phase 12 below.
 
@@ -339,3 +340,49 @@ canonical bytes and semantic fingerprint PASS. No canonical file was changed.
 Full commands, evidence, formulas and limits: docs/PHASE12_VERIFICATION.md,
 docs/MARKET_M1.md and docs/SAVE_FORMAT_V6.md.
 STOP after Phase 12. No Phase 13 history or dealer-spread implementation.
+
+
+## Phase 13 / Four-Year Strategic History
+
+Implemented HistoryVersion 1 structural transition over the immutable generated
+prologue base: 48 monthly decisions, exactly 1460 daily coarse market updates,
+paid dealer spread and reserve-to-persistent-NPC conversion, adjacent settlements
+with six real garrison members, bounded paid influence and causal political/
+personal relationships. Records compress investments, entry/discovery, annual
+cooperation/disputes and monthly faction support spending. No 20 Hz four-year
+loop, free resource recovery, random major NPC death, story graph or Phase 14
+implementation. Explicit FIRST DELIVERY and rival-discovery evidence gates entry;
+headless tools require an explicit synthetic prologue fixture. Runtime mission
+integration remains Phase 16. Normal simulation resumes after completion and
+never enforces permanent equilibrium caps.
+
+SaveFormatVersion 7 / StateHash v9 preserve monthly checkpoints, evidence,
+history and resulting world consequences. V1..v6 migrate without invented or
+replayed history. The real v6 fixture retains all fourteen old section payloads
+byte for byte. GeneratorVersion 3 and GameVersion 0.1.0 remain unchanged. Direct
+v1/v2/v3 seed-12345 BaseWorldHashes retain 2938f0ca42162bc9,
+5f3a446fe0d2f974 and 888c5dbd10c15886. Parent canonical specs are unchanged.
+
+Canonical tools/build.ps1 PASS, exit 0: 19/19 CTest gates in 1268.59 s, C++20
+Debug / GCC 16.2.0, zero project warnings. All 150 doctest cases / 485658 assertions
+PASS, including eight new history cases / 1661 assertions. Full history replay
+and viability/reference checks PASS for 1000 small worlds (427.40 s) and 250
+standard worlds (310.17 s). Maximum observed market shares: 34.70% / 32.57%;
+territorial shares: 50.00% / 42.85%. All five factions remain viable at generated
+entry. No retry, subsidy or ownership repair was needed. All prior unit,
+persistence, process determinism, 250 x 30-day / 25 x year runtime batches,
+five-year markets and 1000-seed worldgen gates PASS.
+
+Actual standard seed 12345 produces 49 dealers, 372 compressed records, tick
+56064000 and StateHash 62a8488f568a6102. A saved year-one checkpoint resumes to
+identical final bytes (SHA-256
+15272adffbbc6b3ff108583a7423106caf3e96e062f07d585d69d24bb09a32ce).
+Post-history 30+335-day save/load and uninterrupted year also match every byte
+(SHA-256 9e212e7e106fcd234a0a979b112eef4f6dbb8049650c6fda4d168390f38ea7b2).
+Savecheck v7 canonical bytes and semantic fingerprint PASS. Later runtime warfare
+can still snowball, as documented in earlier phases and the verification report;
+permanent balancing/recruitment is not pulled into this phase.
+
+Full commands, measured outputs, algorithm and API limitations are recorded in
+docs/PHASE13_VERIFICATION.md, docs/STRATEGIC_HISTORY.md and docs/SAVE_FORMAT_V7.md.
+STOP after Phase 13. Phase 14 has not begun. Known blockers: none.

@@ -219,3 +219,19 @@ Save v1..v5 migrates without historical revenue or RNG consumption. New runtime
 hashes and resource trajectories naturally differ from Phase 11 as treasury
 income supports future paid operations. Historical runtime hashes document their
 old implementations; they are not promises that market-enabled futures match.
+
+
+## Phase 13 / strategic history and save v7
+
+Current StateHash is FAULTLINE.state.v9. The structural history API consumes
+explicit delivery/discovery evidence and HistoryVersion 1; it does not silently
+run during construction or old-save migration. Its 48 monthly decisions and
+1460 daily market updates reuse semantic territory, market and relationship
+rules. Separate discovery/origin and history/month seed domains consume no
+runtime RNG. Stable domain ordering, existing NPC allocators and monthly
+checkpoint persistence make interrupted histories reproduce exact hashes/bytes.
+History costs conserve treasury and reserve-to-NPC/garrison transfers conserve
+actual manpower. The stage preserves generator v1/v2/v3 BaseWorldHash fixtures;
+its consequences are part of the resulting semantic state. Runtime simulation
+resumes after completion with no permanent balance caps. See STRATEGIC_HISTORY.md,
+SAVE_FORMAT_V7.md and PHASE13_VERIFICATION.md. No Phase 14 story logic is included.

@@ -60,3 +60,16 @@ and pending faction operations. It is not emitted by the current v6 writer.
 SHA-256: `474246048820a05eb2e718a878598579f2af030af9336b89bea6afd7fb74cb3b`.
 The market suite compares every old section payload byte for byte, verifies zero
 retroactive revenue, then continues the migration alongside a v6 reload for a year.
+
+
+## Phase 12 v6 fixture
+
+`save_v6_phase12.flsave` was emitted by the unmodified Phase 12 executable before
+Phase 13 sources were built:
+`build/faultline_sim.exe --seed 12345 --days 30 --save tests/fixtures/save_v6_phase12.flsave`.
+It is 1,025,498 bytes, tick 1152000, generator 3, 508 operations (four pending),
+719 market updates and historical StateHash dad9074a462b8212.
+SHA-256: `54ad68de755f3339a4f87111d07734ac49f2726a903ea99b9b43ceb642ec9236`.
+Phase 13 checks every original section payload unchanged through v7 migration,
+empty history and 335-day deterministic continuation. Do not regenerate this
+fixture with the new writer.
