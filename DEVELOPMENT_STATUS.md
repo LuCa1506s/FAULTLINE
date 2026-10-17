@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 11 - TerritorySystem completed and verified.
-STOP before Phase 12 review.
+Current phase: Phase 12 - Market M1 completed and verified.
+Stop after Phase 12; do not begin Phase 13.
 
 Completed:
 
@@ -94,16 +94,15 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 11 is ready for review.
+In progress: none. Phase 12 is ready for review.
 
-Next: Phase 12 / District Market M1 after review: demand/supply, dealer capacity,
-market shares, bounded prices and faction income. Do not start automatically.
+Next: Phase 13 / Four-year history after Phase 12 review. Do not start automatically.
 
 Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
 this agent did not modify security settings or bypass blocked executables.
 
-## Phase 11 local-resistance repair
+## Historical Phase 11 local-resistance repair
 
 Independent review found the omitted roadmap/GDD local-resistance requirement.
 Implemented bounded deterministic opposition from local battle casualties, relieved
@@ -124,7 +123,7 @@ Doctest 126 cases / 219571 assertions PASS; territory 27 / 3663. No warnings or
 weakened assertions. Final comment-only rebuild and fast gate: 8/8 PASS in
 23.63 s. Full commands, results and limits are recorded in
 docs/PHASE11_VERIFICATION.md.
-STOP after Phase 11; no Phase 12 implementation.
+Historical Phase 11 checkpoint stopped before Phase 12.
 
 ## Historical Phase 11 verification
 
@@ -299,13 +298,44 @@ GeneratorVersion 3, SaveFormatVersion 4 and GameVersion 0.1.0 preserved.
   process outputs match for each supported version. Unknown version 4 is rejected.
 
 Phase 10 verifies semantic NPC activity/travel, relationships and promotion.
-No market revenue/recruitment, police,
+Before Phase 12, no market revenue/recruitment, police,
 mission simulation, combat, input devices or renderer are implemented. Gate C is
 verified for streaming and Phase 8 semantic save/load. M1 validation
 does not claim validation of the complete future sandbox. Geometric limits:
 orthogonal rectangular polygons, flat geography, one building per parcel, no
 interiors; large block interiors can remain vacant. Initial control is connected,
 resource-backed and may leave neutral territories. Relationships encode baseline
-context; no four-year history or runtime political/market simulation exists.
+context; no four-year history or runtime political simulation exists; Phase 12 adds runtime markets.
 Phase 9 verifies playerless aggregate operations/resources for Gate D; broader
-territory/NPC consequences are now verified; market remains its next roadmap phase.
+territory/NPC consequences are now verified; market is implemented in Phase 12 below.
+
+## Phase 12 / Market M1
+
+Implemented deterministic hourly district markets with differentiated abstract
+baseline demand, bounded supply and damped prices, actual semantic Dealer
+capacity, exact faction shares/sales and authoritative treasury credits. Territory
+control affects access without transferring market ownership. Lifecycle/body-health
+loss, disablement and decaying district disruption reduce actual supply and income.
+No automatic dealer replacement, resource duplication, worldgen changes or future
+Phase 13 history is introduced. Rules, fractional credits, accounting counters,
+assignments and market memory persist in save v6 and StateHash v8. V1..v5 migration
+adds market runtime without retroactive revenue or RNG consumption. GeneratorVersion
+3 and GameVersion 0.1.0 are unchanged.
+
+Canonical tools/build.ps1 PASS, exit 0: all 15 CTest gates in 518.99 seconds,
+C++20 Debug / GCC 16.2.0, no unresolved project warnings. Doctest: 142 cases /
+483587 assertions PASS, including 16 market cases. Five small worlds x five years
+passed daily validation (262860 assertions); ten standard worlds x five years
+passed 437990 market updates and 62648762 total income. Prior 250 x 30-day,
+25 x 365-day, 1000-seed worldgen and both process-determinism gates passed.
+Historical v1/v2/v3 BaseWorldHash fixtures remain 2938f0ca42162bc9,
+5f3a446fe0d2f974 and 888c5dbd10c15886. All v1..v5 save migrations pass.
+
+Actual CLI seed-12345 day-30 plus 335-day continuation equals uninterrupted
+year-end save bytes (SHA-256
+487c8ef87e8e7d49cc6e1ac995ba8e5b737a4f0825c568fb80cf5ad32d267094).
+Day-30 StateHash dad9074a462b8212; year-end 86fa867542f4778f. Savecheck v6
+canonical bytes and semantic fingerprint PASS. No canonical file was changed.
+Full commands, evidence, formulas and limits: docs/PHASE12_VERIFICATION.md,
+docs/MARKET_M1.md and docs/SAVE_FORMAT_V6.md.
+STOP after Phase 12. No Phase 13 history or dealer-spread implementation.

@@ -259,7 +259,15 @@ TEST_CASE("generated worlds act autonomously without diplomacy or major NPC deat
     for (std::size_t i=0;i<a.randomness.streams.size();++i)
         if (i!=static_cast<std::size_t>(RandomDomain::Factions) && i!=static_cast<std::size_t>(RandomDomain::Npc)) CHECK(a.randomness.streams[i].state()==initialRandom.streams[i].state());
     for (const auto& [id,f] : original.factions.entries()) {
-        CHECK(a.world.factions.get(id).treasury<=f.treasury); CHECK(factionResources(a,id).totalManpower<=world::factionManpower(*original.base,id));
+        std::int64_t income=0,spent=0;
+        for (const auto& [district,m] : a.marketSimulation.districts) { (void)district;
+            if (m.factions.contains(id)) income+=static_cast<std::int64_t>(m.factions.at(id).creditedIncome);
+        }
+        for (const auto& [opId,op] : a.factionSimulation.operations.entries()) { (void)opId;
+            if (op.faction==id) spent+=op.commitment.paidCost;
+        }
+        CHECK(a.world.factions.get(id).treasury==f.treasury+income-spent);
+        CHECK(factionResources(a,id).totalManpower<=world::factionManpower(*original.base,id));
         CHECK(factionResources(a,id).totalManpower>0); CHECK(factionResources(a,id).activeOperations<=2);
     }
     CHECK_NOTHROW(validateState(a));

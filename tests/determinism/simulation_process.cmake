@@ -22,3 +22,7 @@ endif()
 if(NOT output_a MATCHES "Control changes: [1-9][0-9]*" OR NOT output_a MATCHES "Contested transitions: [1-9][0-9]*")
   message(FATAL_ERROR "Territory consequences were not exercised")
 endif()
+
+if(NOT output_a MATCHES "Market updates: [1-9][0-9]*" OR NOT output_a MATCHES "Market income credited: [1-9][0-9]*")
+  message(FATAL_ERROR "Market scheduling/income were not exercised")
+endif()

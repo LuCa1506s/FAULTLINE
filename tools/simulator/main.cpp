@@ -18,11 +18,13 @@ std::uint64_t number(std::string_view text) {
 struct Statistics {
     std::uint64_t operations{}, attacks{}, defenses{}, resolved{}, failed{}, cancelled{}, live{};
     std::uint64_t manpowerLoss{}, treasurySpent{}, commitmentPeak{}, resourceExhausted{};
+    std::uint64_t marketUpdates{}, marketIncome{}, marketSupply{}, marketDemand{};
     NpcStatistics npcs;
     std::uint64_t controlChanges{}, contests{}, uncontrolledTransitions{}, transitions{};
     std::uint64_t zeroTerritoryFactions{}, staticWorlds{}, minChanges{neverTick}, maxChanges{}, largestShareBps{};
 };
 void accumulate(Statistics& a,const Statistics& b) {
+    a.marketUpdates+=b.marketUpdates; a.marketIncome+=b.marketIncome; a.marketSupply+=b.marketSupply; a.marketDemand+=b.marketDemand;
     a.controlChanges+=b.controlChanges; a.contests+=b.contests; a.uncontrolledTransitions+=b.uncontrolledTransitions; a.transitions+=b.transitions;
     a.zeroTerritoryFactions+=b.zeroTerritoryFactions; a.staticWorlds+=b.staticWorlds;
     a.minChanges=std::min(a.minChanges,b.controlChanges); a.maxChanges=std::max(a.maxChanges,b.controlChanges);
@@ -35,6 +37,8 @@ void accumulate(Statistics& a,const Statistics& b) {
     a.npcs.relationshipChanges+=b.npcs.relationshipChanges; a.npcs.promotions+=b.npcs.promotions;
 }
 void printStats(const Statistics& s) {
+    std::cout << "Market updates: " << s.marketUpdates << "\nMarket income credited: " << s.marketIncome
+        << "\nFinal abstract demand: " << s.marketDemand << "\nFinal abstract supply: " << s.marketSupply << '\n';
     std::cout << "Control changes: " << s.controlChanges << "\nContested transitions: " << s.contests
         << "\nUncontrolled transitions: " << s.uncontrolledTransitions << "\nTerritory transitions: " << s.transitions
         << "\nFactions reaching zero controlled territories: " << s.zeroTerritoryFactions
@@ -49,13 +53,19 @@ void printStats(const Statistics& s) {
         << "\nPeak committed manpower: " << s.commitmentPeak << "\nFactions unable to mobilize (resources): " << s.resourceExhausted << '\n';
 }
 Statistics run(GameState& state,std::uint64_t days,bool verbose,bool log) {
-    std::map<FactionId,FactionResources> initial; std::map<FactionId,std::int64_t> money; std::set<FactionId> zeroTerritories;
+    std::map<FactionId,FactionResources> initial; std::set<FactionId> zeroTerritories;
     std::uint64_t initialCommitted=0;
+    const auto firstNewOperation=state.factionSimulation.operations.nextId();
     const auto initialOperations=state.factionSimulation.operations.entries().size();
+    const auto marketUpdatesBefore=state.marketSimulation.updates;
+    std::uint64_t incomeBefore=0;
+    for (const auto& [id,m] : state.marketSimulation.districts) { (void)id;
+        for (const auto& [f,e] : m.factions) { (void)f; incomeBefore+=e.creditedIncome; }
+    }
     const auto npcBefore=state.npcSimulation.statistics;
     const auto territoryBefore=state.territorySimulation.statistics;
     for (const auto& [id,f] : state.world.factions.entries()) {
-        const auto resources=factionResources(state,id); initial.emplace(id,resources); money.emplace(id,f.treasury);
+        (void)f; const auto resources=factionResources(state,id); initial.emplace(id,resources);
         initialCommitted+=resources.committedManpower;
     }
     const auto trackControl=[&]() {
@@ -79,6 +89,15 @@ Statistics run(GameState& state,std::uint64_t days,bool verbose,bool log) {
         }
     };
     validateState(state); simulation.advanceHeadless(state,days*gameDayTicks,observe); validateState(state);
+    stats.marketUpdates=state.marketSimulation.updates-marketUpdatesBefore;
+    for (const auto& [id,m] : state.marketSimulation.districts) { (void)id;
+        stats.marketDemand+=m.demand; stats.marketSupply+=m.supply;
+        for (const auto& [f,e] : m.factions) { (void)f; stats.marketIncome+=e.creditedIncome; }
+    }
+    stats.marketIncome-=incomeBefore;
+    for (const auto& [id,op] : state.factionSimulation.operations.entries())
+        if (id.value()>=firstNewOperation)
+            stats.treasurySpent+=static_cast<std::uint64_t>(op.commitment.paidCost);
     const auto& territoryAfter=state.territorySimulation.statistics;
     stats.controlChanges=territoryAfter.controlChanges-territoryBefore.controlChanges;
     stats.contests=territoryAfter.contestedTransitions-territoryBefore.contestedTransitions;
@@ -106,7 +125,7 @@ Statistics run(GameState& state,std::uint64_t days,bool verbose,bool log) {
         if (!state.world.territories.entries().empty()) stats.largestShareBps=std::max(stats.largestShareBps,
             static_cast<std::uint64_t>(territoryCount*10000/state.world.territories.entries().size()));
         stats.manpowerLoss+=initial.at(id).totalManpower-r.totalManpower;
-        stats.treasurySpent+=static_cast<std::uint64_t>(money.at(id)-faction.treasury);
+
         const auto minimum=std::min(state.factionSimulation.config.attackBaseCost,state.factionSimulation.config.defenseBaseCost)+
             state.factionSimulation.config.costPerMember*state.factionSimulation.config.minForce;
         if (faction.reserveMembers<state.factionSimulation.config.minForce || faction.treasury<minimum) ++stats.resourceExhausted;

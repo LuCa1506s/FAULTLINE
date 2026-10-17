@@ -1,7 +1,12 @@
 # Session file inventory
 
 The initial Phase 0 session started from an empty working directory. This index
-lists the source files now present, including the Phase 11 additions.
+lists the source files now present, including the Phase 12 additions.
+
+Completed and verified Phase 12 adds district market runtime, save v6 / StateHash v8 and market
+regression/multi-year gates. Algorithms: docs/MARKET_M1.md; encoding:
+docs/SAVE_FORMAT_V6.md; results: docs/PHASE12_VERIFICATION.md. The Phase 12
+inventory appears at the end; preceding entries retain historical provenance.
 
 Phase 11 revalidation on 2026-10-17 preserved the existing implementation and
 added two integration cases in tests/territory_simulation_tests.cpp: shuffled
@@ -185,3 +190,32 @@ build/phase11-repair-*. No parent canonical source or worldgen algorithm changed
 
 Local generated artifacts are under `.tools/`, `build/` and `.git/` inside the
 workspace. They are not source files. No canonical parent documents were edited.
+
+## Phase 12 / District Market M1
+
+New source and verification files:
+
+* `src/simulation/market/market_state.hpp`
+* `src/simulation/market/market_system.hpp`
+* `src/simulation/market/market_system.cpp`
+* `src/persistence/schema_v6.hpp`
+* `tests/market_simulation_tests.cpp`
+* `tests/fixtures/save_v5_phase11.flsave`
+* `docs/MARKET_M1.md`
+* `docs/SAVE_FORMAT_V6.md`
+* `docs/PHASE12_VERIFICATION.md`
+
+Modified existing files: CMakeLists.txt; runtime/game_state.hpp and game.cpp;
+persistence/save.hpp and save.cpp; tools/simulator/main.cpp;
+tests/faction_simulation_tests.cpp, persistence_tests.cpp,
+territory_simulation_tests.cpp, determinism/simulation_process.cmake;
+tests/fixtures/README.md; README.md; docs/DETERMINISM.md;
+DEVELOPMENT_STATUS.md and this index. Existing territory corruption tests now
+locate section 13's actual end after section 14 was appended; all original
+resistance assertions remain. Synthetic persistence fixtures explicitly initialize
+their new district markets. Faction accounting now requires exact treasury
+conservation including real income and operation spending.
+
+Generated commands/logs/saves use `build/phase12-*`. No generated-world algorithm,
+historical fixture or parent canonical document is modified. Stop after Phase 12;
+Phase 13 history and dealer spread are not implemented.

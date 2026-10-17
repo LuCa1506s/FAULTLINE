@@ -392,7 +392,7 @@ TEST_CASE("real v4 territory save migrates with zero resistance and preserves al
     CHECK(s.factionSimulation.operations.entries().size()==508);CHECK(s.factionSimulation.pendingOperations.size()==4);
     CHECK(s.territorySimulation.statistics.transitions==50);
     for (const auto& [id,t] : s.territorySimulation.territories) { (void)id; CHECK(t.localResistance==0); }
-    const auto migrated=saveGameState(s);CHECK(readSaveHeader(migrated).saveFormatVersion.value==5);
+    const auto migrated=saveGameState(s);CHECK(readSaveHeader(migrated).saveFormatVersion==currentSaveFormatVersion);
     const auto oldPayload=payload(bytes,13),newPayload=payload(migrated,13);
     REQUIRE(oldPayload==newPayload);
     // Sections 1..12 including every RNG word, and V4's exact territory payload.
@@ -410,8 +410,11 @@ TEST_CASE("resistance and its rules are hashed and malformed save extensions are
     changed=s;changed.territorySimulation.rules.resistanceReliefUnit=1001;CHECK_THROWS(validateState(changed));
     changed=s;changed.territorySimulation.rules.resistanceCasualtyUnit=1001;CHECK_THROWS(validateState(changed));
     auto bytes=saveGameState(s);
-    const auto extension=bytes.size()-8-s.territorySimulation.territories.size()*4;
+    detail::Reader sectionLength{bytes}; sectionLength.offset=payload(bytes,13)-4;
+    std::uint32_t length{}; sectionLength(length);
+    const auto territoryEnd=payload(bytes,13)+length;
+    const auto extension=territoryEnd-8-s.territorySimulation.territories.size()*4;
     std::fill_n(bytes.begin()+static_cast<std::ptrdiff_t>(extension),4,0xFF);CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
-    bytes=saveGameState(s);std::fill_n(bytes.end()-4,4,0xFF);CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
+    bytes=saveGameState(s);std::fill_n(bytes.begin()+static_cast<std::ptrdiff_t>(territoryEnd-4),4,0xFF);CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
     bytes=saveGameState(s);bytes.pop_back();CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
 }

@@ -157,7 +157,7 @@ and PHASE10_VERIFICATION.md for implementation and actual verification status.
 
 ## Phase 11 / territory presence and save v5
 
-Runtime StateHash now uses FAULTLINE.state.v7. Territory rules, sparse causal
+Phase 11 StateHash used FAULTLINE.state.v7. Territory rules, sparse causal
 entrenchment, local resistance and its two rule units, concrete garrison affiliation, the incumbent hysteresis latch,
 derived control state/controller, exactly-once operation consumption and fixed-size
 counters extend the canonical state. The separate control-cache map is excluded.
@@ -202,3 +202,20 @@ type semantically serializable. No source files in the parent are modified.
 The world-generation specification section 103 illustrates the complete future
 generator. Its sections 98–102 explicitly stage implementation; M1 validation
 does not claim validation of buildings, factions, NPCs, market or story.
+
+## Phase 12 / district market and save v6
+
+Current StateHash is FAULTLINE.state.v8. It adds all persistent market fields,
+fractional revenue, disruption memory, assignments and economic scheduler/rules.
+Calculation uses stable DistrictId/FactionId/NpcId order and bounded integer
+arithmetic; no RNG draws or wall-clock input. Fixed/headless paths include market
+deadlines and pay once per scheduled update. The pipeline places market after
+operation/territory consequences and reconciliation, before faction evaluation
+and NPC decisions. Physical health and synchronized abstract health have equal
+economic consequences. See MARKET_M1.md and SAVE_FORMAT_V6.md.
+
+GeneratorVersion and all historical BaseWorldHash fixtures remain unchanged.
+Save v1..v5 migrates without historical revenue or RNG consumption. New runtime
+hashes and resource trajectories naturally differ from Phase 11 as treasury
+income supports future paid operations. Historical runtime hashes document their
+old implementations; they are not promises that market-enabled futures match.

@@ -50,3 +50,13 @@ StateHash c5c174fb61dc193, generator 3, tick 1152000.
 SHA-256: `f788cfd61eee45dc97790607c86ab5bc119deea6b225e0863092df77e4ef2dfb`.
 V5 tests check preserved historical authority and bytes, zero initial resistance,
 and deterministic future continuation. Do not regenerate it with the current writer.
+
+## Phase 11 v5 fixture
+
+`save_v5_phase11.flsave` is the unmodified actual Phase 11 repaired day-30 save,
+copied from build/phase11-repair-day30.flsave before the Phase 12 build. It has
+SaveFormatVersion 5, seed 12345, generator 3, tick 1152000, persisted resistance
+and pending faction operations. It is not emitted by the current v6 writer.
+SHA-256: `474246048820a05eb2e718a878598579f2af030af9336b89bea6afd7fb74cb3b`.
+The market suite compares every old section payload byte for byte, verifies zero
+retroactive revenue, then continues the migration alongside a v6 reload for a year.

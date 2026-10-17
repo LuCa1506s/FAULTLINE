@@ -1,7 +1,8 @@
-#include "persistence/schema_v4.hpp"
+#include "persistence/schema_v6.hpp"
 #include "simulation/factions/faction_system.hpp"
 #include "simulation/npc/npc_system.hpp"
 #include "simulation/territory/territory_system.hpp"
+#include "simulation/market/market_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <fstream>
 #include <sstream>
@@ -16,9 +17,9 @@ SaveError::SaveError(SaveErrorCode errorCode, std::string errorSection, std::siz
 namespace {
 using detail::Writer;
 using detail::Reader;
-enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation };
+enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation };
 constexpr std::uint32_t legacySectionCount=10;
-constexpr std::uint32_t sectionCount=13;
+constexpr std::uint32_t sectionCount=14;
 void header(Reader& r) {
     r.need(saveMagic.size());
     for (auto expected : saveMagic) {
@@ -156,6 +157,16 @@ SaveBytes saveGameState(const GameState& state) {
             a(s.rules.resistanceCasualtyUnit,s.rules.resistanceReliefUnit);
             for (const auto& [id,t] : s.territories) { (void)id; a(t.localResistance); }
         });
+        section(w,Section::MarketSimulation,[&](Writer& a){
+            const auto& s=state.marketSimulation; a(s.rules,s.nextUpdateTick,s.updates);
+            a.collection(s.districts.size());
+            for (const auto& [id,m] : s.districts) {
+                a(id,m.baselineDemand,m.demandScaleBps,m.demand,m.supply,m.referencePrice,m.minimumPrice,m.maximumPrice,
+                    m.price,m.sensitivity,m.accessibilityBps,m.disruptionBps);
+                a.collection(m.factions.size()); for (const auto& [f,e] : m.factions) a(f,e);
+            }
+            a.collection(s.dealers.size()); for (const auto& [id,d] : s.dealers) a(id,d);
+        });
         return std::move(w.bytes);
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) {
@@ -168,7 +179,7 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
     if (bytes.size()>maxSaveBytes) r.fail(SaveErrorCode::InvalidData,"Save resource limit");
     try {
         header(r); std::uint32_t count{}; r(count);
-        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : sectionCount))
+        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : sectionCount))
             r.fail(SaveErrorCode::InvalidData,"Incorrect section count");
         world::WorldState world; RuntimeRandomState random{r.header.worldSeed}; core::SimulationClock clock;
         section(r,Section::Runtime,"runtime",[&](Reader& a){
@@ -254,6 +265,32 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
                 }
             });
         }
+        simulation::MarketSimulationState marketSimulation;
+        if (r.header.saveFormatVersion.value>=6) {
+            section(r,Section::MarketSimulation,"market simulation",[&](Reader& a){
+                auto& s=marketSimulation; a(s.rules,s.nextUpdateTick,s.updates);
+                const auto countMarkets=a.count(); DistrictId previous{};
+                for (std::uint32_t i=0;i<countMarkets;++i) {
+                    DistrictId id{}; simulation::DistrictMarketState m;
+                    a(id,m.baselineDemand,m.demandScaleBps,m.demand,m.supply,m.referencePrice,m.minimumPrice,m.maximumPrice,
+                        m.price,m.sensitivity,m.accessibilityBps,m.disruptionBps);
+                    if (!id || id<=previous) a.fail(SaveErrorCode::InvalidData,"Invalid market district order");
+                    previous=id; const auto n=a.count(); FactionId prior{};
+                    for (std::uint32_t j=0;j<n;++j) {
+                        FactionId f{}; simulation::FactionMarketState e; a(f,e);
+                        if (!f || f<=prior) a.fail(SaveErrorCode::InvalidData,"Invalid market faction order");
+                        prior=f; m.factions.emplace(f,e);
+                    }
+                    s.districts.emplace(id,std::move(m));
+                }
+                const auto n=a.count(); NpcId prior{};
+                for (std::uint32_t i=0;i<n;++i) {
+                    NpcId id{}; simulation::DealerState d; a(id,d);
+                    if (!id || id<=prior) a.fail(SaveErrorCode::InvalidData,"Invalid dealer order");
+                    prior=id; s.dealers.emplace(id,d);
+                }
+            });
+        }
         if (r.remaining()!=0) r.fail(SaveErrorCode::InvalidData,"Trailing save data");
         r.section="semantic validation";
         GameState state{{r.header.worldSeed,r.header.generatorVersion},clock,std::move(random),std::move(world)};
@@ -276,6 +313,8 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
             state.territorySimulation=std::move(territorySimulation);
             simulation::rebuildTerritoryControlCache(state);
         } else simulation::markHistoricalTerritoryResults(state);
+        if (r.header.saveFormatVersion.value>=6) state.marketSimulation=std::move(marketSimulation);
+        else simulation::initializeMarketSimulation(state); // No past revenue or RNG consumption.
         validateLoaded(state,r); return state;
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) { r.fail(SaveErrorCode::ValidationFailure,e.what()); }

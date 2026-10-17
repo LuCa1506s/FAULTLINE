@@ -3,6 +3,7 @@
 #include "persistence/schema_v1.hpp"
 #include "simulation/runtime/game.hpp"
 #include "simulation/territory/territory_system.hpp"
+#include "simulation/market/market_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <algorithm>
 #include <filesystem>
@@ -116,7 +117,7 @@ TEST_CASE("allocator high-water marks survive gaps and domain exhaustion") {
     (void)state.world.npcs.create(); (void)state.world.vehicles.create(); (void)state.world.missions.create();
     const auto district=state.world.districts.create(); (void)state.world.territories.create({district});
     (void)state.world.factions.create();
-    simulation::initializeTerritorySimulation(state); auto b=loadGameState(saveGameState(state));
+    simulation::initializeTerritorySimulation(state); simulation::initializeMarketSimulation(state); auto b=loadGameState(saveGameState(state));
     CHECK(state.world.entities.create()==b.world.entities.create()); CHECK(b.world.entities.nextId()==29);
     CHECK(state.world.npcs.create()==b.world.npcs.create()); CHECK(state.world.vehicles.create()==b.world.vehicles.create());
     CHECK(state.world.missions.create()==b.world.missions.create()); CHECK(state.world.districts.create()==b.world.districts.create());
@@ -210,7 +211,7 @@ TEST_CASE("loader rejects broken semantic references duplicate records and orpha
     state.world.factions.get(faction).leader=first; state.world.factions.get(faction).homeTerritory=territory;
     (void)state.world.missions.create({world::MissionResolution::Available,first});
     const auto entity=state.world.entities.create(); state.world.transforms.set(state.world.entities,entity,{});
-    simulation::initializeTerritorySimulation(state);
+    simulation::initializeTerritorySimulation(state); simulation::initializeMarketSimulation(state);
     const auto valid=saveGameState(state); auto bytes=valid;
     setU64(bytes,payload(bytes,6)+12+8+1,999); expectError(bytes,SaveErrorCode::ValidationFailure); // leader
     bytes=valid; setU64(bytes,payload(bytes,5)+12+8+8,999); expectError(bytes,SaveErrorCode::ValidationFailure); // owner
