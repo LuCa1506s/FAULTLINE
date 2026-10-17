@@ -4,6 +4,185 @@ Status: **completed and verified**. STOP before Phase 12 review.
 Date: 2026-10-17. C++20 / GCC 16.2.0 / Ninja / Debug.
 Canonical parent documents and unrelated repository files were not modified.
 
+## Independent-review repair - local resistance (2026-10-17)
+
+This section supersedes the historical measurements/schema statements below.
+The review correctly identified a missing roadmap section-15 / GDD section-54
+requirement. Read the phase contract, AGENTS.md, current status/report, canonical
+spatial/domain/faction/save/roadmap specs and relevant source/tests. No canonical
+conflict was found. No future-phase implementation or canonical edit was made.
+
+Implemented one bounded local-resistance value per runtime territory. Actual
+attack casualties raise opposition (5 units per casualty by default); surviving
+successful defense relieves it (2 units per survivor). Linked defense records do
+not count the same casualties twice. Cancelled operations and failed defenses
+provide no relief. Opposing strength is max(rival presence, resistance), compared
+against the ordinary gain/hold margins. Resistance can prevent acquisition or
+turn control into contest without creating faction presence or manpower. Empty
+regions stay uncontrolled. Initialization starts at zero and preserves base maps.
+Sorted operation processing, target batching and the existing persisted consumed
+ledger also govern resistance, including duplicate/reordered event delivery.
+
+SaveFormatVersion **5**, runtime StateHash **v7**, GeneratorVersion **3**,
+GameVersion **0.1.0**. The new rules and resistance are authoritative, persisted,
+validated and hashed. V5 appends to section 13's unchanged v4 payload; sections
+1..12 keep their exact wire encodings. Real v1/v2/v3 migrations remain tested.
+A real pre-repair v4 day-30 fixture now verifies prior territory authority/bytes,
+zero default resistance, unchanged RNG and deterministic pending-op continuation.
+Fixture provenance/SHA-256: tests/fixtures/README.md. Encoding: SAVE_FORMAT_V5.md.
+
+Five added cases verify resistance-only opposition boundaries, no empty-territory
+claim, causal battle disruption including a failed attack with no rival foothold,
+saturation, successful paid defense relief without double-counted casualties,
+nonzero/custom-rule save continuation, real v4 migration, hashing and malformed
+extensions. The failed-attack fixture initially assumed no garrison casualties;
+its assertion exposed that incorrect assumption. The corrected case checks the
+exact garrison loss and proves that loss alone retains control, while resistance
+changes it to Contested. Existing assertions/coverage were retained.
+
+Canonical gate actually executed:
+`powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1`
+**PASS, exit 0; 12/12 CTest entries in 327.12 s**, no project warnings/errors.
+Log: build/phase11-repair-build.log; detailed suite/batch output retained in
+build/phase11-repair-full-ctest-detail.log. Fast labels total 23.53 s; persistence
+labels 13.47 s. No assertions were removed or weakened.
+
+| Gate | Result | Seconds |
+|---|---|---:|
+| Persistence, faction, NPC, territory, foundation | PASS | 2.54 / 3.23 / 2.69 / 5.02 / 7.57 |
+| Simulation process determinism | PASS | 1.17 |
+| Seed 12345 / 365 days | PASS | 1.96 |
+| Seeds 1..250 / 30 days | PASS | 128.88 |
+| Seeds 1..25 / 365 days | PASS | 34.52 |
+| Worldgen checkpoint / 1000 seeds / process determinism | PASS | 0.26 / 138.21 / 1.05 |
+
+Doctest: **126 cases / 219571 assertions PASS**. Foundation 49/210838,
+persistence 15/4156, faction 15/403, NPC 20/511, territory **27/3663**.
+Persistence's additional assertions follow its existing exhaustive truncated-save
+checks over the extended schema. Batch control changes: mean 33.404 (range
+1..77) for 30 days; mean 80.44 (37..133) for a year. No fully static worlds.
+Largest final shares 84.61% and 100%; dominance is reported without artificial
+caps. Full batch metrics are in the retained detailed log.
+
+After a comment-only header cleanup, activated the existing toolchain and ran
+`cmake --build build` then
+`ctest --test-dir build --output-on-failure -L fast`: **exit 0, 8/8 PASS in
+23.63 s**, no warnings. Final rebuild/fast log:
+build/phase11-repair-final-fast.log. The full stress run above used identical
+production logic. Final `git diff --check` also passed.
+
+Standalone commands actually executed, exit 0:
+
+```powershell
+./build/faultline_sim.exe --seed 12345 --days 30 --save build/phase11-repair-day30.flsave
+./build/faultline_sim.exe --seed 12345 --days 365 --save build/phase11-repair-year.flsave
+./build/faultline_sim.exe --load build/phase11-repair-day30.flsave --days 335 --save build/phase11-repair-resumed.flsave
+./build/faultline_savecheck.exe --seed 12345
+1..3 | ForEach-Object { ./build/faultline_worldgen.exe --seed 12345 --version $_ --validate }
+Get-FileHash build/phase11-repair-year.flsave,build/phase11-repair-resumed.flsave -Algorithm SHA256
+```
+
+Day 30 validates: StateHash **2e0033b8ca5379b9**, 508 operations, 49 controller
+changes, 15 contested transitions; control counts **17/0/18/5/0**, one contested.
+18 territories have nonzero resistance (max 35, total 424); save 1024117 bytes.
+Day 365 validates: StateHash **fa5c761eb581b41d**, 648 operations, 60 controller
+changes, 20 contested transitions; control counts **21/0/19/1/0**, no contests.
+24 territories have nonzero resistance (max 75, total 579); save 1039329 bytes.
+These aggregate counts happen to match the pre-repair seed-12345 run; dedicated
+behavior tests prove resistance changes control at its causal boundaries.
+
+Day-30 + 335 days matches the uninterrupted year StateHash and every save byte
+(Python byte comparison also executed). Both year-end SHA-256 values:
+`12615f4f1c5312b5417b970f1d287b89f21f4dbb19b9359897fc3633cc0a14e0`.
+Savecheck: canonical bytes PASS, initial save **969005 bytes**, before/after
+StateHash **d942e2aaa4d51869**. Direct generator checks all validate and preserve
+seed-12345 BaseWorldHashes: v1 **2938f0ca42162bc9**, v2 **5f3a446fe0d2f974**,
+v3 **888c5dbd10c15886**. Logs/saves: build/phase11-repair-*.
+
+Repair changes: src/simulation/territory/territory_state.hpp,
+territory_system.hpp/.cpp; src/simulation/runtime/game.cpp;
+src/persistence/save.hpp/.cpp; tests/territory_simulation_tests.cpp;
+tests/fixtures/save_v4_phase11.flsave and README.md; docs/SAVE_FORMAT_V5.md,
+TERRITORY_M1.md, DETERMINISM.md, FILE_INDEX.md, this report; repository README.md
+and DEVELOPMENT_STATUS.md. Pre-existing revalidation changes were preserved.
+
+Limit: resistance is an aggregate response to local territorial violence with
+operation-driven relief; it has no passive decay or detailed civilian simulation.
+No civilian gangs, economy, market or Phase 12 logic was added. Existing M1
+resource-exhaustion, residual-garrison and ledger-growth limits remain.
+
+## Historical revalidation session - 2026-10-17
+
+The requested phase was already implemented at session start. Read AGENTS.md,
+the phase contract, DEVELOPMENT_STATUS.md, all five named canonical specs,
+save/version documentation, and the relevant runtime/faction/territory/save code
+and tests. Preserved that implementation; no canonical conflict was found.
+The numbered sections below retain the original implementation-session report.
+This revalidation changes only tests/territory_simulation_tests.cpp,
+DEVELOPMENT_STATUS.md, docs/FILE_INDEX.md and this report. Existing unrelated
+automation edits and helper files were left untouched.
+
+Two additional integration cases verify actual paid attack/defense outcomes:
+
+* Reversing simultaneous result delivery and duplicating each result preserves
+  StateHash, every save byte, and the one nonempty control-transition event.
+  Replaying the same outcomes after save/load leaves state and events unchanged.
+* All ten non-default territory rules survive repeated save/load during a
+  resource-backed A-controlled -> contested -> B-controlled sequence. Future
+  OperationIds, hashes and bytes match at every step. Rules affect StateHash.
+
+The initial ordering-test setup kept control unchanged, so its required nonempty
+event assertion failed. Changed the fixture to a weakened, still controlled
+foothold that actually crosses a control boundary; retained the assertion.
+The expanded territory suite then passed **22 cases / 3564 assertions**.
+
+Fresh standalone CLI commands (all exited 0):
+
+```powershell
+./build/faultline_sim.exe --seed 12345 --days 30 --save build/phase11-recheck-day30.flsave
+./build/faultline_sim.exe --seed 12345 --days 365 --save build/phase11-recheck-year.flsave
+./build/faultline_sim.exe --load build/phase11-recheck-day30.flsave --days 335 --save build/phase11-recheck-resumed.flsave
+./build/faultline_worldgen.exe --seed 12345 --version 1 --validate
+./build/faultline_worldgen.exe --seed 12345 --version 2 --validate
+./build/faultline_worldgen.exe --seed 12345 --version 3 --validate
+./build/faultline_savecheck.exe --seed 12345
+```
+
+Day 30: 508 operations, 49 controller changes, 15 contested transitions,
+StateHash c5c174fb61dc193. Day 365: 648 operations, 60 controller changes,
+20 contested transitions, StateHash 48c3ef5c0b1eecea. Both validate. Uninterrupted
+and resumed year-end saves have identical SHA-256
+5a10f2a6333918e1e974bb8858cd8ba660dd0a3a41e85f3a47177dae84d3d92d.
+CLI stdout is retained in build/phase11-recheck-day30.log, -year.log and
+-resumed.log. Direct generator checks preserve all three historical hashes
+listed in section 30. Savecheck passes canonical bytes and equal before/after
+StateHash 91d411fb99846223; initial v4 save remains 968833 bytes.
+
+No production behavior, schema, generator/version fixtures or Phase 12 logic
+was changed by this revalidation.
+
+Fresh canonical command:
+`powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1`
+exited **0**, configure/build successful, **12/12 CTest entries PASS** in
+**340.75 s**. The existing targets initially required no rebuild. This run
+includes foundation, persistence, faction, NPC, territory, both process
+determinism gates, seed 12345 x 365 days, seeds 1..250 x 30 days (**129.21 s**),
+seeds 1..25 x 365 days (**34.74 s**) and worldgen 1..1000 (**151.54 s**).
+Fast labels total 23.35 s; persistence labels 12.21 s. The full-run log is
+preserved at build/phase11-recheck-full-ctest.log.
+
+The two added cases were compiled during the stress gates with
+`cmake --build build --target faultline_territory_tests` (after activating
+tools/activate_toolchain.ps1); compilation/link exited 0 without project
+warnings. `./build/faultline_territory_tests.exe` passed the expanded 22-case
+suite. Other suites were unchanged, giving **121 cases / 219440 assertions**
+across the five doctest suites. The full canonical run tested the original
+20-case territory executable before the additions; the expanded executable
+was verified separately. No unchanged stress gate needed a second execution.
+Final `ctest --test-dir build -R '^territory_tests$' --output-on-failure`
+also passed the expanded suite, exit 0, 1/1 in 3.97 s.
+`git diff --check` passes for all four files changed by this session.
+
 ## 1. Files created/modified
 
 Created (9):

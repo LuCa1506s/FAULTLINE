@@ -152,6 +152,9 @@ SaveBytes saveGameState(const GameState& state) {
                 for (const auto& [f,value] : t.entrenchment) a(f,value);
             }
             a.collection(s.appliedOperations.size()); for (auto id : s.appliedOperations) a(id);
+            // V5 extension; the entire V4 payload prefix keeps its wire encoding.
+            a(s.rules.resistanceCasualtyUnit,s.rules.resistanceReliefUnit);
+            for (const auto& [id,t] : s.territories) { (void)id; a(t.localResistance); }
         });
         return std::move(w.bytes);
     } catch (const SaveError&) { throw; }
@@ -243,6 +246,11 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
                 for (std::uint32_t i=0;i<n;++i) { OperationId id{}; a(id);
                     if (!id || id<=prior) a.fail(SaveErrorCode::InvalidData,"Duplicate/unordered consumed operation");
                     prior=id; territorySimulation.appliedOperations.insert(id);
+                }
+                // Older saves have no resistance history. Do not replay past battles.
+                if (r.header.saveFormatVersion.value>=5) {
+                    a(territorySimulation.rules.resistanceCasualtyUnit,territorySimulation.rules.resistanceReliefUnit);
+                    for (auto& [id,t] : territorySimulation.territories) { (void)id; a(t.localResistance); }
                 }
             });
         }

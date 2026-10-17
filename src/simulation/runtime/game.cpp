@@ -63,7 +63,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v6"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v7"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)

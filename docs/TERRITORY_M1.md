@@ -20,7 +20,8 @@ starts Controlled by the same faction; neutral regions start Uncontrolled. Homes
 have a robust but destructible foothold: no bonus is regenerated on reevaluation.
 Initial entrenchment represents existing generated local structure; subsequent
 changes require actual operation outcomes. No passive random gain, decay, market,
-dealer economy, civilian support or police pressure is introduced.
+dealer economy, full civilian simulation or police pressure is introduced.
+Local resistance begins at zero, preserving every imported map.
 
 ## Control and hysteresis
 
@@ -28,7 +29,8 @@ Rules are centralized and persistent. Find the largest and second-largest
 presence, using ascending FactionId for stable ordering:
 
 * Top below 100 -> Uncontrolled, no controller.
-* Rival presence >=60 and top-minus-second below the required margin -> Contested,
+* Opposition = max(second-largest faction presence, local resistance).
+* Opposition >=60 and top-minus-opposition below the required margin -> Contested,
   no controller.
 * Otherwise Controlled by the top faction.
 
@@ -36,7 +38,7 @@ Required margin is 80 to acquire control and 60 to retain it. The minimal
 persisted incumbent latch remembers held control; losing control clears it.
 For example, a 59-unit advantage loses held control; restoring a 60-unit advantage
 does not instantly reacquire it, which needs 80. This is real temporal hysteresis,
-not floating-point epsilon or random tie breaking. Presence plus rules and this
+not floating-point epsilon or random tie breaking. Presence, local resistance, rules and this
 explicit history modifier are authoritative inputs. Control enum/controller are
 derived; an unpersisted cache and the legacy owner wire mirror are validated.
 No faction-owned-territory list or independent count is authoritative.
@@ -77,14 +79,42 @@ commitments -> scheduled faction evaluation -> semantic NPC update -> structural
 commit. Control changes never recursively run strategic AI. Current reality is
 visible at the next scheduled evaluation. Cancellations have no territorial effect.
 
+## Local resistance
+
+Roadmap section 15 and GDD section 54 require a local-resistance control factor.
+M1 models local opposition to criminal control through one bounded integer per
+territory. It belongs to no faction, contributes no soldiers or foothold, cannot
+be selected as a defender and cannot claim an empty territory. It competes with
+the strongest faction using the existing contest threshold and gain/hold margins.
+Even without rival entrenchment, sufficiently resisted criminal presence becomes
+Contested and clears its controller/latch through the ordinary event path.
+Below-minimum faction presence remains Uncontrolled regardless of resistance.
+
+Each newly consumed attack outcome raises resistance by (ownLosses +
+opposingLosses) * resistanceCasualtyUnit, default 5, capped at maximumPresence.
+These local battle casualties proxy the disruption causing opposition; they are
+not civilian casualty records. Garrison losses are already included in opposing
+losses. A linked defense reports the same fight, so it never adds casualties a
+second time. Successful defense relieves resistance by surviving committed
+members * resistanceReliefUnit, default 2, clamped at zero. Failed defense and
+cancelled operations grant no relief. Forces and mobilization remain paid by
+FactionSystem. Zero units explicitly disable their respective contribution.
+
+The existing exactly-once ledger protects these effects on load and replay.
+OperationId order applies the attack's disruption before its later-created
+linked defense's relief, then reevaluates the target once. No RNG, elapsed-time
+decay, passive faction penalty, civilian entities, gang creation or new scheduler
+is needed. Resistance persists until a causal operation changes it; detailed
+civilian sentiment/recovery is outside this minimal Phase 11 model.
+
 ## Persistence and scope
 
-Save v4 preserves presence inputs, garrison affiliation, hysteresis, consumption
+Save v5 preserves presence inputs, local resistance, garrison affiliation, hysteresis, consumption
 ledger and fixed-size statistics; derived caches are rebuilt. Old saves initialize
 from saved map/garrisons and acknowledge past results without replaying them.
 Active old operations resolve through the new rules in the future. Runtime
-StateHash v6 includes all semantic territorial data; BaseWorldHashes are frozen.
-See SAVE_FORMAT_V4.md and PHASE11_VERIFICATION.md for encoding and actual gates.
+StateHash v7 includes all semantic territorial data; BaseWorldHashes are frozen.
+See SAVE_FORMAT_V5.md and PHASE11_VERIFICATION.md for encoding and actual gates.
 
 Territory counts are derived from Controlled/controller, never top contender.
 Zero-controlled factions remain alive with resources, NPCs and home identity.

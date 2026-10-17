@@ -19,7 +19,8 @@ void validateTerritoryRules(const TerritoryRules& r) {
         r.holdMargin>0 && r.holdMargin<r.gainMargin && r.gainMargin<=r.maximumPresence &&
         r.garrisonUnit>0 && r.garrisonUnit<=1000 && r.initialEntrenchment>=r.minimumControlPresence &&
         r.initialEntrenchment<=r.maximumPresence && r.homeEntrenchment<=r.maximumPresence-r.initialEntrenchment &&
-        r.attackPressureDivisor>0 && r.attackPressureDivisor<=10000 && r.defenseSurvivorUnit>0 && r.defenseSurvivorUnit<=1000,
+        r.attackPressureDivisor>0 && r.attackPressureDivisor<=10000 && r.defenseSurvivorUnit>0 && r.defenseSurvivorUnit<=1000 &&
+        r.resistanceCasualtyUnit<=1000 && r.resistanceReliefUnit<=1000,
         "Invalid territory rules");
 }
 std::map<FactionId,std::uint32_t> territoryPresence(const GameState& state,TerritoryId id) {
@@ -31,7 +32,7 @@ std::map<FactionId,std::uint32_t> territoryPresence(const GameState& state,Terri
     }
     return values;
 }
-TerritoryControl evaluateTerritoryControl(const TerritoryRules& r,const std::map<FactionId,std::uint32_t>& values,FactionId incumbent) {
+TerritoryControl evaluateTerritoryControl(const TerritoryRules& r,const std::map<FactionId,std::uint32_t>& values,FactionId incumbent,std::uint32_t localResistance) {
     FactionId top; std::uint32_t first=0,second=0;
     for (const auto& [id,value] : values) {
         if (value>first) { second=first; first=value; top=id; }
@@ -39,12 +40,13 @@ TerritoryControl evaluateTerritoryControl(const TerritoryRules& r,const std::map
     }
     if (first<r.minimumControlPresence) return {};
     const auto margin=top==incumbent ? r.holdMargin : r.gainMargin;
-    if (second>=r.contestThreshold && first-second<margin) return {TerritoryControlState::Contested,{}};
+    second=std::max(second,localResistance);
+    if (second>=r.contestThreshold && static_cast<std::uint64_t>(first)<static_cast<std::uint64_t>(second)+margin) return {TerritoryControlState::Contested,{}};
     return {TerritoryControlState::Controlled,top};
 }
 TerritoryControl territoryControl(const GameState& state,TerritoryId t) {
     return evaluateTerritoryControl(state.territorySimulation.rules,territoryPresence(state,t),
-        state.territorySimulation.territories.at(t).incumbent);
+        state.territorySimulation.territories.at(t).incumbent,state.territorySimulation.territories.at(t).localResistance);
 }
 bool controlsTerritory(const GameState& state,FactionId f,TerritoryId t) {
     const auto c=territoryControl(state,t); return f && c.state==TerritoryControlState::Controlled && c.controller==f;
@@ -135,6 +137,18 @@ void applyTerritoryConsequences(GameState& state,std::span<const FactionOperatio
             change(state,op.target,op.faction,reinforcement);
             change(state,op.target,op.opponent,-reinforcement/(op.status==OperationStatus::Resolved ? 1 : 2));
         }
+        // Count the battle's casualties only on the attack record: the bound
+        // defense describes the same fight. Successful defense relieves local
+        // opposition through surviving protective presence, not free resources.
+        auto& resistance=s.territories.at(op.target).localResistance;
+        if (op.type==OperationType::AttackTerritory) {
+            const auto casualties=static_cast<std::uint64_t>(op.result.ownLosses)+op.result.opposingLosses;
+            resistance=static_cast<std::uint32_t>(std::min<std::uint64_t>(r.maximumPresence,
+                resistance+casualties*r.resistanceCasualtyUnit));
+        } else if (op.status==OperationStatus::Resolved) {
+            const auto relief=static_cast<std::uint64_t>(survivors)*r.resistanceReliefUnit;
+            resistance=relief>=resistance ? 0U : static_cast<std::uint32_t>(resistance-relief);
+        }
         s.appliedOperations.insert(id); changed.insert(op.target);
     }
     // One logical transition per territory after the entire simultaneous outcome,
@@ -152,6 +166,7 @@ void validateTerritorySimulation(const GameState& state) {
         require(state.world.territories.exists(id),"Missing territory");
         require(!t.garrisonFaction || state.world.factions.exists(t.garrisonFaction),"Invalid garrison faction");
         require(state.world.territories.get(id).residentMembers==0 || static_cast<bool>(t.garrisonFaction),"Garrison manpower without membership");
+        require(t.localResistance<=s.rules.maximumPresence,"Invalid local resistance");
         require(!t.incumbent || state.world.factions.exists(t.incumbent),"Invalid control latch");
         for (const auto& [f,value] : t.entrenchment) require(state.world.factions.exists(f) && value>0 && value<=s.rules.maximumPresence,"Invalid territorial presence");
         const auto control=territoryControl(state,id);
@@ -172,11 +187,11 @@ void validateTerritorySimulation(const GameState& state) {
 void appendTerritorySimulationHash(core::StateHash& h,const GameState& state) {
     const auto& s=state.territorySimulation; const auto& r=s.rules;
     for (auto v : {r.maximumPresence,r.minimumControlPresence,r.contestThreshold,r.gainMargin,r.holdMargin,r.garrisonUnit,
-        r.initialEntrenchment,r.homeEntrenchment,r.attackPressureDivisor,r.defenseSurvivorUnit}) h.u64(v);
+        r.initialEntrenchment,r.homeEntrenchment,r.attackPressureDivisor,r.defenseSurvivorUnit,r.resistanceCasualtyUnit,r.resistanceReliefUnit}) h.u64(v);
     h.u64(s.territories.size());
     for (const auto& [id,t] : s.territories) {
         const auto control=territoryControl(state,id);
-        h.u64(id.value()); h.u64(t.garrisonFaction.value()); h.u64(t.incumbent.value());
+        h.u64(id.value()); h.u64(t.garrisonFaction.value()); h.u64(t.incumbent.value()); h.u64(t.localResistance);
         h.u64(static_cast<std::uint64_t>(control.state)); h.u64(control.controller.value()); h.u64(t.entrenchment.size());
         for (const auto& [f,value] : t.entrenchment) {h.u64(f.value());h.u64(value);}
     }

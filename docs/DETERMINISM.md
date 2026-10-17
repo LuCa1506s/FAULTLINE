@@ -155,10 +155,10 @@ operations is retained as a fixed compatibility fixture; its historical section
 bytes must survive migration unchanged. See SAVE_FORMAT_V3.md, NPC_SEMANTIC_M1.md
 and PHASE10_VERIFICATION.md for implementation and actual verification status.
 
-## Phase 11 / territory presence and save v4
+## Phase 11 / territory presence and save v5
 
-Runtime StateHash now uses FAULTLINE.state.v6. Territory rules, sparse causal
-entrenchment, concrete garrison affiliation, the incumbent hysteresis latch,
+Runtime StateHash now uses FAULTLINE.state.v7. Territory rules, sparse causal
+entrenchment, local resistance and its two rule units, concrete garrison affiliation, the incumbent hysteresis latch,
 derived control state/controller, exactly-once operation consumption and fixed-size
 counters extend the canonical state. The separate control-cache map is excluded.
 No generated field encoding or BaseWorldHash changes; GeneratorVersion stays 3.
@@ -182,6 +182,14 @@ terminal results without replay. Active operations remain pending for future
 resolution. Presence, hysteresis and the consumption ledger preserve mid-contest
 and day-30-to-year-end continuation. See SAVE_FORMAT_V4.md, TERRITORY_M1.md and
 PHASE11_VERIFICATION.md for actual schema, algorithms and verified results.
+
+Save v5 retains the entire v4 payload prefix of section 13 and appends the two
+resistance rules plus one resistance value per ordered territory. V1..v4 migration
+starts resistance at zero without replaying casualties. Attack casualties raise
+bounded opposition; surviving successful defense relieves it. Stable operation
+ordering, exactly-once consumption and one reevaluation per target also govern
+resistance. No civilian simulation, RNG or extra deadline is introduced. See
+SAVE_FORMAT_V5.md and the repair section of PHASE11_VERIFICATION.md.
 
 ## Source interpretation
 

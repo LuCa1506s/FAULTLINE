@@ -265,3 +265,153 @@ TEST_CASE("FactionSystem resolution alone never writes control or operational fo
     TerritoryEventBuffer changes;applyTerritoryConsequences(s,events.values(),changes);
     CHECK(territoryPresence(s,t).contains(b));CHECK_NOTHROW(validateState(s));
 }
+
+TEST_CASE("simultaneous outcome order and duplicate delivery preserve canonical state and events") {
+    auto original=fixture();const auto t=target(original);
+    // A weakened but still controlled foothold makes this paid battle cross a
+    // control boundary, so event comparison cannot pass with two empty buffers.
+    original.territorySimulation.territories.at(t).entrenchment[a]=150;
+    const auto id=attack(original,12);FactionEventBuffer effects;
+    REQUIRE(launchFactionOperation(original,a,{OperationType::DefendTerritory,t,id,4,10000},effects));
+    const auto op=original.factionSimulation.operations.get(id);
+    original.clock=core::SimulationClock{op.activeTick};updateFactionOperations(original,effects);effects.clear();
+    original.clock=core::SimulationClock{op.resolutionTick};updateFactionOperations(original,effects);
+    REQUIRE(effects.values().size()==2);
+    auto reordered=original;
+    const auto& outcomes=effects.values();
+    const std::vector<FactionOperationEvent> duplicates{outcomes[1],outcomes[0],outcomes[1],outcomes[0]};
+    TerritoryEventBuffer forwardEvents,reorderedEvents;
+    applyTerritoryConsequences(original,outcomes,forwardEvents);
+    applyTerritoryConsequences(reordered,duplicates,reorderedEvents);
+    CHECK_NOTHROW(validateState(original));CHECK_NOTHROW(validateState(reordered));
+    CHECK(stateHash(original)==stateHash(reordered));
+    CHECK(saveGameState(original)==saveGameState(reordered));
+    REQUIRE(forwardEvents.values().size()==reorderedEvents.values().size());
+    REQUIRE(forwardEvents.values().size()==1);
+    const auto& expected=forwardEvents.values().front();const auto& actual=reorderedEvents.values().front();
+    CHECK(actual.territory==t);CHECK(actual.territory==expected.territory);
+    CHECK(actual.previous==expected.previous);CHECK(actual.current==expected.current);CHECK(actual.tick==expected.tick);
+    auto loaded=loadGameState(saveGameState(reordered));const auto hash=stateHash(loaded);TerritoryEventBuffer replay;
+    applyTerritoryConsequences(loaded,duplicates,replay);
+    CHECK(replay.empty());CHECK(stateHash(loaded)==hash);
+}
+
+TEST_CASE("custom territory rules survive contest save load and future paid pressure") {
+    auto original=fixture();const auto t=target(original);
+    original.territorySimulation.rules={20000,150,90,120,75,30,180,150,15,7};
+    initializeTerritorySimulation(original);
+    const auto initial=stateHash(original);
+    auto defaults=original;defaults.territorySimulation.rules=TerritoryRules{};
+    CHECK(stateHash(defaults)!=initial);
+    bool contested=false;
+    for (unsigned attempts=0;attempts<20 && !controlsTerritory(original,b,t);++attempts) {
+        auto loaded=loadGameState(saveGameState(original));
+        CHECK(loaded.territorySimulation.rules==original.territorySimulation.rules);
+        CHECK(stateHash(loaded)==stateHash(original));
+        const auto x=attack(original),y=attack(loaded);CHECK(x==y);
+        finish(original,x);finish(loaded,y);
+        CHECK(stateHash(original)==stateHash(loaded));CHECK(saveGameState(original)==saveGameState(loaded));
+        contested |= territoryControl(original,t).state==TerritoryControlState::Contested;
+        CHECK_NOTHROW(validateState(original));
+    }
+    CHECK(contested);CHECK(controlsTerritory(original,b,t));
+}
+
+TEST_CASE("local resistance contests real presence but cannot own or create territory presence") {
+    const TerritoryRules r;
+    CHECK(evaluateTerritoryControl(r,{},a,10000).state==TerritoryControlState::Uncontrolled);
+    CHECK(evaluateTerritoryControl(r,{{a,99}},a,10000).state==TerritoryControlState::Uncontrolled);
+    for (std::uint32_t resistance : {140U,141U,10000U}) {
+        const auto c=evaluateTerritoryControl(r,{{a,200}},a,resistance);
+        CHECK(c.state==(resistance==140 ? TerritoryControlState::Controlled : TerritoryControlState::Contested));
+        CHECK(c.controller==(resistance==140 ? a : FactionId{}));
+    }
+    CHECK(evaluateTerritoryControl(r,{{a,200}},{},120).controller==a);
+    CHECK(evaluateTerritoryControl(r,{{a,200}},{},121).state==TerritoryControlState::Contested);
+}
+TEST_CASE("battle casualties create bounded local opposition and change control without rival footholds") {
+    auto s=fixture();const auto t=target(s);
+    // A failed costly attack earns no foothold. Resistance alone crosses the
+    // incumbent's boundary beyond the battle's separate garrison losses.
+    s.world.territories.get(t).residentMembers=10;
+    auto& runtime=s.territorySimulation.territories.at(t);
+    const auto presence=territoryPresence(s,t).at(a);
+    runtime.localResistance=presence-s.territorySimulation.rules.holdMargin-20;
+    REQUIRE(controlsTerritory(s,a,t));
+    const auto id=attack(s);finish(s,id);const auto& op=s.factionSimulation.operations.get(id);
+    REQUIRE(op.status==OperationStatus::Failed);
+    const auto casualties=op.result.ownLosses+op.result.opposingLosses;
+    REQUIRE(casualties>0);
+    CHECK(runtime.localResistance==presence-s.territorySimulation.rules.holdMargin-20+casualties*5);
+    CHECK(territoryPresence(s,t).at(a)==presence-op.result.garrisonLosses*s.territorySimulation.rules.garrisonUnit);
+    CHECK(evaluateTerritoryControl(s.territorySimulation.rules,territoryPresence(s,t),a,runtime.localResistance-casualties*5).controller==a);
+    CHECK_FALSE(territoryPresence(s,t).contains(b));
+    CHECK(territoryControl(s,t).state==TerritoryControlState::Contested);
+    auto calm=s;calm.territorySimulation.territories.at(t).localResistance=0;
+    TerritoryEventBuffer changes;reevaluateTerritoryControl(calm,t,changes);
+    CHECK(controlsTerritory(calm,a,t));CHECK(stateHash(s)!=stateHash(calm));
+    CHECK_NOTHROW(validateState(s));
+    // Saturation is deterministic and cannot overflow even at the configured cap.
+    runtime.localResistance=s.territorySimulation.rules.maximumPresence;
+    const auto next=attack(s);finish(s,next);
+    CHECK(runtime.localResistance==s.territorySimulation.rules.maximumPresence);
+    CHECK_NOTHROW(validateState(s));
+}
+TEST_CASE("successful resource backed defense relieves resistance once and survives continuation") {
+    auto original=fixture();const auto t=target(original);
+    auto& r=original.territorySimulation.rules;r.resistanceCasualtyUnit=7;r.resistanceReliefUnit=11;
+    original.territorySimulation.territories.at(t).localResistance=200;
+    TerritoryEventBuffer changes;reevaluateTerritoryControl(original,t,changes);
+    REQUIRE(territoryControl(original,t).state==TerritoryControlState::Contested);
+    const auto id=attack(original);FactionEventBuffer events;
+    const auto defense=launchFactionOperation(original,a,{OperationType::DefendTerritory,t,id,32,10000},events);REQUIRE(defense);
+    auto loaded=loadGameState(saveGameState(original));
+    CHECK(loaded.territorySimulation.rules==r);
+    CHECK(loaded.territorySimulation.territories.at(t).localResistance==200);
+    finish(original,id);finish(loaded,id);
+    const auto& attackResult=original.factionSimulation.operations.get(id).result;
+    const auto& d=original.factionSimulation.operations.get(defense.operation);
+    REQUIRE(d.status==OperationStatus::Resolved);
+    const auto raised=200+(attackResult.ownLosses+attackResult.opposingLosses)*7;
+    const auto relief=(d.commitment.manpower-d.result.ownLosses)*11;
+    CHECK(original.territorySimulation.territories.at(t).localResistance==(relief>=raised ? 0U : raised-relief));
+    CHECK(controlsTerritory(original,a,t));CHECK(stateHash(original)==stateHash(loaded));
+    CHECK(saveGameState(original)==saveGameState(loaded));
+    const auto hash=stateHash(loaded);FactionOperationEvent replay{};replay.kind=OperationEventKind::Resolved;replay.operation=defense.operation;
+    applyTerritoryConsequences(loaded,std::span{&replay,1},changes);CHECK(stateHash(loaded)==hash);
+    // Continue through another real attack after nonzero resistance has round-tripped.
+    original.territorySimulation.territories.at(t).localResistance=30;
+    reevaluateTerritoryControl(original,t,changes);loaded=loadGameState(saveGameState(original));
+    const auto x=attack(original),y=attack(loaded);CHECK(x==y);finish(original,x);finish(loaded,y);
+    CHECK(stateHash(original)==stateHash(loaded));CHECK(saveGameState(original)==saveGameState(loaded));
+    CHECK_NOTHROW(validateState(loaded));
+}
+TEST_CASE("real v4 territory save migrates with zero resistance and preserves all prior authority") {
+    const auto bytes=historical("save_v4_phase11.flsave");REQUIRE(readSaveHeader(bytes).saveFormatVersion.value==4);
+    auto s=loadGameState(bytes);CHECK(s.clock.tick()==30*gameDayTicks);
+    CHECK(s.factionSimulation.operations.entries().size()==508);CHECK(s.factionSimulation.pendingOperations.size()==4);
+    CHECK(s.territorySimulation.statistics.transitions==50);
+    for (const auto& [id,t] : s.territorySimulation.territories) { (void)id; CHECK(t.localResistance==0); }
+    const auto migrated=saveGameState(s);CHECK(readSaveHeader(migrated).saveFormatVersion.value==5);
+    const auto oldPayload=payload(bytes,13),newPayload=payload(migrated,13);
+    REQUIRE(oldPayload==newPayload);
+    // Sections 1..12 including every RNG word, and V4's exact territory payload.
+    CHECK(std::equal(bytes.begin()+48,bytes.begin()+static_cast<std::ptrdiff_t>(oldPayload-8),migrated.begin()+48));
+    CHECK(std::equal(bytes.begin()+static_cast<std::ptrdiff_t>(oldPayload),bytes.end(),migrated.begin()+static_cast<std::ptrdiff_t>(newPayload)));
+    auto resumed=loadGameState(migrated);Simulation sim;sim.advanceHeadless(s,gameDayTicks);sim.advanceHeadless(resumed,gameDayTicks);
+    CHECK(stateHash(s)==stateHash(resumed));CHECK(saveGameState(s)==saveGameState(resumed));CHECK_NOTHROW(validateState(s));
+}
+TEST_CASE("resistance and its rules are hashed and malformed save extensions are rejected") {
+    auto s=fixture();const auto t=target(s);const auto hash=stateHash(s);
+    s.territorySimulation.territories.at(t).localResistance=1;CHECK(stateHash(s)!=hash);
+    auto changed=s;++changed.territorySimulation.rules.resistanceCasualtyUnit;CHECK(stateHash(changed)!=stateHash(s));
+    changed=s;++changed.territorySimulation.rules.resistanceReliefUnit;CHECK(stateHash(changed)!=stateHash(s));
+    changed=s;changed.territorySimulation.territories.at(t).localResistance=10001;CHECK_THROWS(validateState(changed));
+    changed=s;changed.territorySimulation.rules.resistanceReliefUnit=1001;CHECK_THROWS(validateState(changed));
+    changed=s;changed.territorySimulation.rules.resistanceCasualtyUnit=1001;CHECK_THROWS(validateState(changed));
+    auto bytes=saveGameState(s);
+    const auto extension=bytes.size()-8-s.territorySimulation.territories.size()*4;
+    std::fill_n(bytes.begin()+static_cast<std::ptrdiff_t>(extension),4,0xFF);CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
+    bytes=saveGameState(s);std::fill_n(bytes.end()-4,4,0xFF);CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
+    bytes=saveGameState(s);bytes.pop_back();CHECK_THROWS_AS((void)loadGameState(bytes),SaveError);
+}

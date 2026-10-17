@@ -6,7 +6,7 @@
 
 namespace faultline::persistence {
 struct SaveFormatVersion { std::uint32_t value; auto operator<=>(const SaveFormatVersion&) const = default; };
-inline constexpr SaveFormatVersion currentSaveFormatVersion{4};
+inline constexpr SaveFormatVersion currentSaveFormatVersion{5};
 struct GameVersion {
     std::uint32_t major{}, minor{1}, patch{};
     auto operator<=>(const GameVersion&) const = default;

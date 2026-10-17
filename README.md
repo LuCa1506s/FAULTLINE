@@ -124,7 +124,7 @@ documented in [docs/WORLDGEN_M3.md](docs/WORLDGEN_M3.md).
 Save Foundation uses a separate `faultline_persistence` target, full semantic
 binary saves with versioned headers and bounded little-endian encoding. The
 memory/file API, snapshot policy and actual format are documented in
-[docs/SAVE_FORMAT_V4.md](docs/SAVE_FORMAT_V4.md), with real v1/v2/v3 migration. The
+[docs/SAVE_FORMAT_V5.md](docs/SAVE_FORMAT_V5.md), with real v1/v2/v3/v4 migration. The
 [v1 document](docs/SAVE_FORMAT_V1.md) remains historical reference. The savecheck tool verifies
 round-trip hash/bytes and reports size/timing; it generates no files by default.
 Use `ctest --test-dir build -L persistence --output-on-failure` for save tests.

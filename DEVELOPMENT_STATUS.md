@@ -88,8 +88,10 @@ Completed:
   Faction strategy reads current control; stale operations cancel and release
   commitments. No faction-owned-territory list, soldier transfer on capture or
   forced single-success owner switch. Initial generated/saved maps are preserved.
-* SaveFormatVersion is now 4, with real v1/v2/v3 migration, fixed active-operation
-  fixtures, territory/hysteresis/consumption persistence and StateHash schema v6.
+* Phase 11 originally introduced save v4 / StateHash v6. Independent-review repair
+  adds causal local resistance with attack-disruption and successful-defense relief.
+  SaveFormatVersion is now 5, with real v1/v2/v3/v4 migration, fixed active-operation
+  fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
 In progress: none. Phase 11 is ready for review.
@@ -101,7 +103,47 @@ Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
 this agent did not modify security settings or bypass blocked executables.
 
-## Phase 11 verification
+## Phase 11 local-resistance repair
+
+Independent review found the omitted roadmap/GDD local-resistance requirement.
+Implemented bounded deterministic opposition from local battle casualties, relieved
+by survivors of successful paid defenses. It contributes to control evaluation
+without owning territory or creating faction members. Initial generated maps and
+all historical BaseWorldHashes remain unchanged. Save v5 and StateHash v7 persist
+and hash resistance/rules; real v1..v4 saves migrate without replaying history.
+Five new territory cases cover causal control effects, boundaries, relief,
+saturation, malformed state, hashing, migration and nonzero/custom-rule continuation.
+
+Actual seed-12345 checks validate: day 30 StateHash 2e0033b8ca5379b9, day 365
+fa5c761eb581b41d. Resumed 30+335-day and uninterrupted year-end saves are byte
+identical (SHA-256 12615f4f1c5312b5417b970f1d287b89f21f4dbb19b9359897fc3633cc0a14e0).
+Savecheck v5 canonical bytes PASS. V1/v2/v3 BaseWorldHashes retain all fixtures.
+Canonical tools/build.ps1 PASS, exit 0: 12/12 CTest gates in 327.12 s, including
+250 x 30-day, 25 x 365-day, 1000 worldgen seeds and both process determinism gates.
+Doctest 126 cases / 219571 assertions PASS; territory 27 / 3663. No warnings or
+weakened assertions. Final comment-only rebuild and fast gate: 8/8 PASS in
+23.63 s. Full commands, results and limits are recorded in
+docs/PHASE11_VERIFICATION.md.
+STOP after Phase 11; no Phase 12 implementation.
+
+## Historical Phase 11 verification
+
+Revalidation on 2026-10-17 preserved the Phase 11 implementation already present
+at session start and added two integration cases for reordered/duplicate outcome
+delivery and custom territory rules across contested save/load continuation.
+Expanded territory suite: 22 cases / 3564 assertions PASS; combined doctest
+coverage: 121 cases / 219440 assertions. Fresh day-30 and year runs reproduce
+c5c174fb61dc193 and 48c3ef5c0b1eecea; day-30 + 335-day continuation matches the
+uninterrupted year-end save SHA-256 exactly. Direct generator v1/v2/v3 hashes
+and v4 savecheck remain unchanged. Details and current-session commands are in
+docs/PHASE11_VERIFICATION.md. The following bullets retain the original
+implementation-session measurements.
+
+Fresh canonical build/CTest revalidation: exit 0, 12/12 PASS in 340.75 s,
+including 250 x 30-day / 25 x 365-day simulation batches and 1000 worldgen seeds.
+The expanded territory suite was rebuilt and passed separately after the full
+run's original territory entry. No production changes or project warnings;
+GeneratorVersion 3, SaveFormatVersion 4 and GameVersion 0.1.0 preserved.
 
 * Final canonical tools/build.ps1 PASS, exit 0. C++20 / GCC 16.2.0 / Ninja / Debug;
   CTest 12/12 PASS in 319.46 s. Fast-label portion 22.05 s; persistence 11.86 s.

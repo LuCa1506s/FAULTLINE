@@ -3,6 +3,14 @@
 The initial Phase 0 session started from an empty working directory. This index
 lists the source files now present, including the Phase 11 additions.
 
+Phase 11 revalidation on 2026-10-17 preserved the existing implementation and
+added two integration cases in tests/territory_simulation_tests.cpp: shuffled
+and duplicate simultaneous outcomes (including replay after load), and custom
+territory rules through contested control and future paid attacks. This session
+also updates DEVELOPMENT_STATUS.md and docs/PHASE11_VERIFICATION.md. Fresh CLI
+logs and continuation saves use build/phase11-recheck-*; they are generated
+artifacts. Pre-existing automation changes remain outside this task.
+
 Phase 11 added the three territory simulation files, schema_v4.hpp, territory
 tests, a frozen real Phase 10 v3 save fixture and three territory/v4/verification
 documents listed below. Modified files are enumerated in PHASE11_VERIFICATION.md:
@@ -54,6 +62,15 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 `tools/worldgen/main.cpp`, `tests/worldgen_tests.cpp`, `README.md`,
 `DEVELOPMENT_STATUS.md`, `docs/DETERMINISM.md` and this index.
 
+Phase 11 local-resistance repair adds docs/SAVE_FORMAT_V5.md and the frozen
+pre-repair tests/fixtures/save_v4_phase11.flsave. Modified territory_state.hpp,
+territory_system.hpp/.cpp, runtime/game.cpp, persistence/save.hpp/.cpp and
+territory_simulation_tests.cpp implement and verify causal resistance, save v5,
+StateHash v7, and v1..v4 migrations. Updated README.md, docs/TERRITORY_M1.md,
+docs/DETERMINISM.md, tests/fixtures/README.md, DEVELOPMENT_STATUS.md,
+docs/PHASE11_VERIFICATION.md and this index. Generated repair logs/saves are
+build/phase11-repair-*. No parent canonical source or worldgen algorithm changed.
+
 ## Build and documentation
 
 * `.gitignore`
@@ -76,6 +93,7 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 * `docs/PHASE10_VERIFICATION.md`
 * `docs/TERRITORY_M1.md`
 * `docs/SAVE_FORMAT_V4.md`
+* `docs/SAVE_FORMAT_V5.md`
 * `docs/PHASE11_VERIFICATION.md`
 
 ## Engine
@@ -157,6 +175,7 @@ urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 * `tests/fixtures/save_v1_reference.flsave`
 * `tests/fixtures/save_v2_phase9.flsave`
 * `tests/fixtures/save_v3_phase10.flsave`
+* `tests/fixtures/save_v4_phase11.flsave`
 * `tests/fixtures/README.md`
 * `tests/determinism/simulation_process.cmake`
 * `tests/determinism/worldgen_process.cmake`
