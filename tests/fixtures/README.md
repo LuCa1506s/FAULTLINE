@@ -85,3 +85,18 @@ Exact original creation command is not recorded;
 this is a real Phase 13 format day-one runtime save, not a completed-history save.
 Phase 14 preserves its bytes and compares all fifteen old section payloads through
 v8 migration, then verifies deterministic continuation. Do not regenerate it.
+
+## Phase 15 v8 fixture
+
+`save_v8_phase14.flsave` is the authentic Phase 14 v8-format save generated from
+the unmodified Phase 14 StoryGraph writer (`faultline_story.exe --seed 12345 --fixture-prologue --save`).
+Produced in a temporary git worktree at commit `0aab7c4` with Phase 15 source files excluded
+(see docs/PHASE15_VERIFICATION.md for provenance). It contains Seed 12345, GeneratorVersion 3,
+SaveFormatVersion 8, tick 56064000 (48 months), StateHash `7c4539b8c6002849` (FAULTLINE.state.v10).
+The fixture validates PASS under Phase 14 savecheck and migrates to v9 under Phase 15 with
+MissionSimulation initialized from defaults. Size: 1006078 bytes.
+SHA-256: `df1574a61f4005a182a7bf8dec87e7fbca4993a8076dcae9df65a0c947376f08`.
+A `.gitattributes` rule (`*.flsave -text binary`) was added to prevent CRLF
+corruption of binary fixtures by `core.autocrlf=true`. The previous reconstructed/v9-stripped
+fixture was 2028838 bytes with SHA-256 `6a3d6cbe26bdc962ad94e3b5d3c59d9c01323118af76979810030ac98ed23708`
+and failed Phase 14 savecheck ("Not a FAULTLINE save").

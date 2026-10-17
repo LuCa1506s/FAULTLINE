@@ -4,6 +4,7 @@
 #include "simulation/runtime/game.hpp"
 #include "simulation/territory/territory_system.hpp"
 #include "simulation/market/market_system.hpp"
+#include "simulation/missions/mission_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <algorithm>
 #include <filesystem>
@@ -253,4 +254,31 @@ TEST_CASE("file persistence has explicit IO failures and cleans test artifacts")
     CHECK(stateHash(state)==stateHash(restored)); CHECK(std::filesystem::file_size(path)==saveGameState(state).size());
     CHECK_THROWS_AS((void)loadGameStateFile(directory/"missing.flsave"),SaveError);
     CHECK_THROWS_AS(saveGameStateFile(state,directory/"missing"/"save.flsave"),SaveError);
+}
+TEST_CASE("v8 fixture loads and migrates to v9 with MissionSimulation initialized") {
+    const auto path=std::filesystem::path{FAULTLINE_TEST_SOURCE_DIR}/"tests/fixtures/save_v8_phase14.flsave";
+    GameState state=loadGameStateFile(path);
+    CHECK(state.metadata.generatorVersion.value==3);
+    CHECK(state.metadata.seed==WorldSeed{12345});
+    CHECK(state.missionSimulation.version==simulation::currentMissionSimulationVersion);
+    CHECK(state.missionSimulation.instances.entries().empty());
+    const auto beforeHash=stateHash(state);
+    const auto bytes=saveGameState(state);
+    CHECK(bytes[16]==9);
+    auto reloaded=loadGameState(bytes);
+    CHECK(stateHash(reloaded)==beforeHash);
+    CHECK(saveGameState(reloaded)==bytes);
+}
+TEST_CASE("MissionSimulation state round-trips through save/load") {
+    GameState state{WorldSeed{12345}};
+    simulation::initializeMissionSimulation(state);
+    const auto& sim=state.missionSimulation;
+    CHECK(sim.version==simulation::currentMissionSimulationVersion);
+    const auto beforeHash=stateHash(state);
+    const auto bytes=saveGameState(state);
+    auto restored=loadGameState(bytes);
+    CHECK(stateHash(restored)==beforeHash);
+    CHECK(saveGameState(restored)==bytes);
+    CHECK(restored.missionSimulation.version==sim.version);
+    CHECK(restored.missionSimulation.statistics==sim.statistics);
 }

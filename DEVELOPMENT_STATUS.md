@@ -94,7 +94,7 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 15 is ready for review.
+In progress: none. Phase 15 completed and verified.
 
 Next: Phase 16 / Drug Market Simulation after Phase 15 review. Do not start automatically.
 
@@ -427,4 +427,14 @@ succession AI. Known blockers: none. STOP before Phase 15.
 ## Phase 15 / Mission Core
 
 Completed and verified. Implemented generic mission system with MissionState lifecycle (AVAILABLE, ACCEPTED, ACTIVE, COMPLETED, FAILED, EXPIRED, INVALIDATED, RESOLVED_BY_NPC), objective graph (GO_TO, INTERACT, DELIVER, PROTECT, ATTACK), typed IDs (MissionId, ObjectiveId), MissionDefinition/MissionInstance separation, event-driven architecture via semantic events (LocationReached, InteractionOccurred, DeliveryOccurred, ProtectedTargetResolved, AttackTargetResolved), StoryGraph bridge, persistence (SaveFormatVersion 9, StateHash v11), validation, and deterministic save/load. All tests pass, including persistence, story, core, faction, NPC, territory, and market tests. Historical BaseWorldHash fixtures remain unchanged: v1 2938f0ca42162bc9, v2 5f3a446fe0d2f974, v3 888c5dbd10c15886.
+
+Final verification:
+- CTest: 23/23 tests PASS (100%).
+- Doctest totals: 170 cases / 500,563 assertions ALL PASS.
+- v8 fixture: Authentic Phase 14 binary, SHA-256 df1574a61f4005a182a7bf8dec87e7fbca4993a8076dcae9df65a0c947376f08 (1,006,078 bytes); loads and migrates to v9 with MissionSimulation initialized from defaults. Phase 14 StateHash (FAULTLINE.state.v10): 7c4539b8c6002849.
+- Save-mid-mission: Round-trip test verifies save/load continuation produces byte-identical output to uninterrupted execution.
+- Cross-process determinism: simulation_process_determinism PASS (seeds 1-5, 30 days each).
+- Multi-world batch: simulation_batch_250 (250 seeds x 30 days) and simulation_year_batch_25 (25 seeds x 365 days) PASS.
+- Fix: Added MissionSimulation persistence (Section::MissionSimulation, v9 format gate), fixed const-correctness in schema_v9.hpp fields functions for MissionInstance/ObjectiveCondition/ObjectiveRuntimeState.
+- Fix: Regenerated v8 fixture from authentic Phase 14 StoryGraph writer in a temporary git worktree; replaced corrupted/reconstructed fixture with proper v8-format binary. Added .gitattributes with *.flsave -text binary.
 

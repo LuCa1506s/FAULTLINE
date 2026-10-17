@@ -25,7 +25,7 @@ void fields(A& a, T& v) {
     std::uint64_t ms = v.time.milliseconds;
     a(v.type, v.npc, v.faction, v.territory, v.district, v.position, v.radius,
       v.storyNode, v.storyOutcome, v.objective, v.threshold, ms);
-    v.time.milliseconds = ms;
+    if constexpr (std::is_same_v<A, Reader>) v.time.milliseconds = ms;
 }
 
 template<class A, class T> requires std::is_same_v<std::remove_cv_t<T>, simulation::ObjectiveTransition>
@@ -47,8 +47,10 @@ void fields(A& a, T& v) {
     std::uint64_t endMs = v.completedAt.milliseconds;
     a(v.state, startMs, endMs, v.locationReached, v.interactionOccurred,
       v.deliveryCompleted, v.protectResolved, v.attackResolved);
-    v.startedAt.milliseconds = startMs;
-    v.completedAt.milliseconds = endMs;
+    if constexpr (std::is_same_v<A, Reader>) {
+        v.startedAt.milliseconds = startMs;
+        v.completedAt.milliseconds = endMs;
+    }
 }
 
 template<class A, class T> requires std::is_same_v<std::remove_cv_t<T>, simulation::MissionInstance>
@@ -60,10 +62,11 @@ void fields(A& a, T& v) {
     a(v.id, v.templateId, v.category, v.status, v.issuer, v.originStoryNode,
       v.context, createdMs, expiresMs, v.reward, v.objectiveDefinitions);
 
-    v.createdAt.milliseconds = createdMs;
-    if (expiresMs.has_value()) v.expiresAt = core::GameTime{*expiresMs};
-    else v.expiresAt.reset();
-
+    if constexpr (std::is_same_v<A, Reader>) {
+        v.createdAt.milliseconds = createdMs;
+        if (expiresMs.has_value()) v.expiresAt = core::GameTime{*expiresMs};
+        else v.expiresAt.reset();
+    }
     // Map serialization
     if constexpr (std::is_same_v<A, Writer>) {
         a.collection(v.objectiveStates.size());

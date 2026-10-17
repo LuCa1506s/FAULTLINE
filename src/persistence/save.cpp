@@ -170,6 +170,9 @@ SaveBytes saveGameState(const GameState& state) {
         });
         section(w,Section::StrategicHistory,[&](Writer& a){ a(state.history); });
         section(w,Section::StoryGraph,[&](Writer& a){ a(state.story.version); writeStore(a,state.story.nodes); });
+        section(w,Section::MissionSimulation,[&](Writer& a){
+            const auto& s=state.missionSimulation; a(s.version,s.config,s.statistics); writeStore(a,s.instances);
+        });
         return std::move(w.bytes);
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) {
@@ -298,6 +301,10 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         if (r.header.saveFormatVersion.value>=7) section(r,Section::StrategicHistory,"strategic history",[&](Reader& a){ a(history); });
         simulation::StoryGraph story;
         if (r.header.saveFormatVersion.value>=8) section(r,Section::StoryGraph,"story graph",[&](Reader& a){ a(story.version); readStore(a,story.nodes); });
+        simulation::MissionSimulationState missionSimulation;
+        if (r.header.saveFormatVersion.value>=9) section(r,Section::MissionSimulation,"mission simulation",[&](Reader& a){
+            a(missionSimulation.version,missionSimulation.config,missionSimulation.statistics); readStore(a,missionSimulation.instances);
+        });
         if (r.remaining()!=0) r.fail(SaveErrorCode::InvalidData,"Trailing save data");
         r.section="semantic validation";
         GameState state{{r.header.worldSeed,r.header.generatorVersion},clock,std::move(random),std::move(world)};
@@ -324,6 +331,8 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         else simulation::initializeMarketSimulation(state); // No past revenue or RNG consumption.
         state.history=std::move(history); // v1..v6 never invent or replay a prologue/history.
         state.story=std::move(story); // v1..v7: uninitialized, no fictional prologue or story outcomes.
+        if (r.header.saveFormatVersion.value>=9) state.missionSimulation=std::move(missionSimulation);
+        else simulation::initializeMissionSimulation(state);
         validateLoaded(state,r); return state;
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) { r.fail(SaveErrorCode::ValidationFailure,e.what()); }
