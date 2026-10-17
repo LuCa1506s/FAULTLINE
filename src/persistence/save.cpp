@@ -1,8 +1,9 @@
-#include "persistence/schema_v7.hpp"
+#include "persistence/schema_v9.hpp"
 #include "simulation/factions/faction_system.hpp"
 #include "simulation/npc/npc_system.hpp"
 #include "simulation/territory/territory_system.hpp"
 #include "simulation/market/market_system.hpp"
+#include "simulation/missions/mission_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <fstream>
 #include <sstream>
@@ -17,9 +18,9 @@ SaveError::SaveError(SaveErrorCode errorCode, std::string errorSection, std::siz
 namespace {
 using detail::Writer;
 using detail::Reader;
-enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory };
+enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation };
 constexpr std::uint32_t legacySectionCount=10;
-constexpr std::uint32_t sectionCount=15;
+constexpr std::uint32_t sectionCount=17;
 void header(Reader& r) {
     r.need(saveMagic.size());
     for (auto expected : saveMagic) {
@@ -168,6 +169,7 @@ SaveBytes saveGameState(const GameState& state) {
             a.collection(s.dealers.size()); for (const auto& [id,d] : s.dealers) a(id,d);
         });
         section(w,Section::StrategicHistory,[&](Writer& a){ a(state.history); });
+        section(w,Section::StoryGraph,[&](Writer& a){ a(state.story.version); writeStore(a,state.story.nodes); });
         return std::move(w.bytes);
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) {
@@ -180,7 +182,7 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
     if (bytes.size()>maxSaveBytes) r.fail(SaveErrorCode::InvalidData,"Save resource limit");
     try {
         header(r); std::uint32_t count{}; r(count);
-        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : sectionCount))
+        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : r.header.saveFormatVersion.value==7 ? 15U : r.header.saveFormatVersion.value==8 ? 16U : sectionCount))
             r.fail(SaveErrorCode::InvalidData,"Incorrect section count");
         world::WorldState world; RuntimeRandomState random{r.header.worldSeed}; core::SimulationClock clock;
         section(r,Section::Runtime,"runtime",[&](Reader& a){
@@ -294,6 +296,8 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         }
         simulation::StrategicHistory history;
         if (r.header.saveFormatVersion.value>=7) section(r,Section::StrategicHistory,"strategic history",[&](Reader& a){ a(history); });
+        simulation::StoryGraph story;
+        if (r.header.saveFormatVersion.value>=8) section(r,Section::StoryGraph,"story graph",[&](Reader& a){ a(story.version); readStore(a,story.nodes); });
         if (r.remaining()!=0) r.fail(SaveErrorCode::InvalidData,"Trailing save data");
         r.section="semantic validation";
         GameState state{{r.header.worldSeed,r.header.generatorVersion},clock,std::move(random),std::move(world)};
@@ -319,6 +323,7 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         if (r.header.saveFormatVersion.value>=6) state.marketSimulation=std::move(marketSimulation);
         else simulation::initializeMarketSimulation(state); // No past revenue or RNG consumption.
         state.history=std::move(history); // v1..v6 never invent or replay a prologue/history.
+        state.story=std::move(story); // v1..v7: uninitialized, no fictional prologue or story outcomes.
         validateLoaded(state,r); return state;
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) { r.fail(SaveErrorCode::ValidationFailure,e.what()); }

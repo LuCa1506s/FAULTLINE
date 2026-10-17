@@ -30,15 +30,14 @@ Modified existing files: CMakeLists.txt, actor_types.hpp, world_state.cpp,
 streaming.cpp, runtime game_state.hpp/game.hpp/game.cpp, persistence save.hpp/
 save.cpp, faction_system.cpp (accounting comment), faction_simulation_tests.cpp,
 simulation_process.cmake, tools/simulator/main.cpp, fixture README, README,
-DEVELOPMENT_STATUS, DETERMINISM and this index. Final CLI/stress verification passed; Phase 10 is completed and stops before
-Phase 11 review.
-No worldgen algorithm or canonical parent document was modified.
+DEVELOPMENT_STATUS, DETERMINISM and this index. No worldgen algorithm or
+canonical parent document was modified during Phase 10.
 
 Phase 9 added the faction simulation state/system, v2 wire-schema extension,
 faction tests, frozen v1 reference encoder/fixture/script, simulation process
 test and M1/v2/verification documentation listed below. Modified existing files:
 `CMakeLists.txt`, `src/core/id/id.hpp`, `src/world/state/actor_types.hpp`,
-`src/world/state/world_state.cpp`, `src/simulation/runtime/game_state.hpp`,
+`src/world/state/world_state.cpp`,
 both `game` files, `src/persistence/save.hpp`, `src/persistence/save.cpp`,
 `tests/persistence_tests.cpp`, `tools/simulator/main.cpp`, `tools/savecheck/main.cpp`,
 README, DEVELOPMENT_STATUS, DETERMINISM and this index. No worldgen source or
@@ -63,7 +62,7 @@ DETERMINISM and this index.
 Phase 6 added the urban stage/model/hash/validator files, rectangle geometry/index,
 urban tests and WORLDGEN_M2.md listed below. Modified existing files:
 `CMakeLists.txt`, `src/core/id/id.hpp`, both `world_generator` files,
-`src/simulation/runtime/game.cpp`, `src/world/state/world_state.cpp`,
+`src/world/state/world_state.cpp`,
 `tools/worldgen/main.cpp`, `tests/worldgen_tests.cpp`, `README.md`,
 `DEVELOPMENT_STATUS.md`, `docs/DETERMINISM.md` and this index.
 
@@ -175,6 +174,7 @@ build/phase11-repair-*. No parent canonical source or worldgen algorithm changed
 * `tests/faction_simulation_tests.cpp`
 * `tests/npc_simulation_tests.cpp`
 * `tests/territory_simulation_tests.cpp`
+* `tests/mission_tests.cpp`
 * `tests/legacy_save_v1.hpp`
 * `tests/fixtures/create_v1_reference.ps1`
 * `tests/fixtures/save_v1_reference.flsave`
@@ -216,11 +216,6 @@ resistance assertions remain. Synthetic persistence fixtures explicitly initiali
 their new district markets. Faction accounting now requires exact treasury
 conservation including real income and operation spending.
 
-Generated commands/logs/saves use `build/phase12-*`. No generated-world algorithm,
-historical fixture or parent canonical document is modified. Stop after Phase 12;
-Phase 13 history and dealer spread are not implemented.
-
-
 ## Phase 13 / Four-Year Strategic History
 
 New source and verification files:
@@ -231,7 +226,7 @@ New source and verification files:
 * `src/persistence/schema_v7.hpp` - history-only section field encoding.
 * `tools/history/main.cpp` - generated transition, checkpoints, replay and mass-seed tool.
 * `tests/history_tests.cpp` - prologue, conservation, persistence, corruption and continuation;
-  custom territory presence limits, preserved entrenchment and monthly checkpoint resume.
+   custom territory presence limits, preserved entrenchment and monthly checkpoint resume.
 * `tests/determinism/history_process.cmake` - independent-process equality gate.
 * `tests/fixtures/save_v6_phase12.flsave` - frozen real Phase 12 day-30 save.
 * `docs/STRATEGIC_HISTORY.md` - algorithm, invariants, commands and scope.
@@ -244,3 +239,42 @@ README.md; tests/fixtures/README.md; docs/DETERMINISM.md; DEVELOPMENT_STATUS.md
 and this index. Existing tests and canonical BaseWorldHash fixtures are preserved.
 Generated logs/saves use `build/phase13-*`. No parent canonical file is changed.
 Stop after Phase 13; Phase 14 is not implemented.
+
+## Phase 14 / Story Graph Foundation
+
+Existing partial files inspected and completed in place:
+
+* `src/simulation/story/story_state.hpp` - typed semantic possibility records and graph store.
+* `src/simulation/story/story_system.hpp` - initialization, live availability, repair, outcome, validation/hash API.
+* `src/simulation/story/story_system.cpp` - deterministic world-derived projection and contact repair.
+
+New files:
+
+* `src/persistence/schema_v8.hpp` - explicit story node/prerequisite encoding.
+* `tools/story/main.cpp` - post-history graph inspection, replay, persistence and mutation batch.
+* `tests/story_tests.cpp` - focused graph/world mutation, death, migration and continuation tests.
+* `tests/determinism/story_process.cmake` - independent-process stdout and save SHA equality.
+* `tests/fixtures/save_v7_phase13.flsave` - preserved previously untracked real v7 day-one fixture.
+* `docs/STORY_GRAPH.md` - actual authority, lifecycle, conditions, repair and limitations.
+* `docs/SAVE_FORMAT_V8.md` - appended wire schema and v1..v7 defaults.
+* `docs/PHASE14_VERIFICATION.md` - executed commands and measured results.
+
+Modified existing files: CMakeLists.txt; core/id/id.hpp; runtime/game_state.hpp
+and game.cpp; persistence/save.hpp and save.cpp; tests/fixtures/README.md;
+README.md; docs/DETERMINISM.md; DEVELOPMENT_STATUS.md and this index. Generated logs, saves and CTest
+results remain in build/. No worldgen/history algorithm or canonical parent file
+is modified. No Phase 15 Mission Core implementation is included.
+
+## Phase 15 / Mission Core
+
+Existing partial files inspected and completed in place:
+
+* `src/simulation/missions/mission_state.hpp` - mission states, objective states, mission definition and instance structures.
+* `src/simulation/missions/mission_system.hpp` - mission system interface: initialization, lifecycle, notification functions, event observation, validation, hashing.
+* `src/simulation/missions/mission_system.cpp` - mission system implementation.
+
+New files:
+
+* None (all mission core files were created during Phase 15).
+
+Modified existing files: CMakeLists.txt; core/id/id.hpp (added MissionId, ObjectiveId); runtime/game_state.hpp (added missionSimulation); runtime/game.cpp and game.hpp (added mission simulation initialization, validation, event observation, and state hash); persistence/save.hpp and save.cpp (added mission simulation to save format, increased SaveFormatVersion to 9); simulation/story/story_system.cpp (added call to repairStoryGraph in the tick function); simulation/npc/npc_state.hpp (added NpcEventKind::Died); simulation/npc/npc_system.cpp (added event generation on NPC death).

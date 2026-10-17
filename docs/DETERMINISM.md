@@ -235,3 +235,27 @@ actual manpower. The stage preserves generator v1/v2/v3 BaseWorldHash fixtures;
 its consequences are part of the resulting semantic state. Runtime simulation
 resumes after completion with no permanent balance caps. See STRATEGIC_HISTORY.md,
 SAVE_FORMAT_V7.md and PHASE13_VERIFICATION.md. No Phase 14 story logic is included.
+
+## Phase 14 / story graph and save v8
+
+Current StateHash is FAULTLINE.state.v10; the v9 description above records the
+historical Phase 13 contract. StoryGraphVersion 1 adds ordered semantic nodes,
+allocator state, immutable history provenance and explicit outcome prerequisites.
+Generation and repair consume no runtime RNG and mutate only story state. Live
+availability is derived from authoritative world facts and saved outcomes.
+Independent-process tests compare both stdout/StateHash and canonical save SHA256.
+V1..v7 saves default to an uninitialized graph without changing their existing
+payloads or inventing prologue/history. Worldgen and HistoryVersion stay unchanged.
+See STORY_GRAPH.md and SAVE_FORMAT_V8.md. No Phase 15 mission state is added.
+
+## Phase 15 / mission core and save v9
+
+Current StateHash is FAULTLINE.state.v11; the v10 description above records the
+historical Phase 14 contract. Mission system adds MissionId allocator state,
+mission instance state, objective state, and mission event buffer. Generation and
+repair consume no runtime RNG and mutate only mission state. Live mission
+eligibility is derived from authoritative world facts and saved outcomes.
+Independent-process tests compare both stdout/StateHash and canonical save SHA256.
+V1..v8 saves default to an uninitialized mission system without changing their
+existing payloads. Worldgen and HistoryVersion stay unchanged.
+See MISSION_CORE.md and SAVE_FORMAT_V9.md. No Phase 16 drug market state is added.

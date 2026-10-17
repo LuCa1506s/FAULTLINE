@@ -48,12 +48,14 @@ public:
     [[nodiscard]] const simulation::FactionEventBuffer& factionEvents() const { return factionEvents_; }
     [[nodiscard]] const simulation::TerritoryEventBuffer& territoryEvents() const { return territoryEvents_; }
     [[nodiscard]] const simulation::NpcEventBuffer& npcEvents() const { return npcEvents_; }
+    [[nodiscard]] const simulation::MissionEventBuffer& missionEvents() const { return missionEvents_; }
 private:
     simulation::NpcEventBuffer npcEvents_;
     simulation::TerritoryEventBuffer territoryEvents_;
     DomainEventBuffer events_;
     StructuralCommandBuffer structuralChanges_;
     simulation::FactionEventBuffer factionEvents_;
+    simulation::MissionEventBuffer missionEvents_;
 };
 class Game {
 public:

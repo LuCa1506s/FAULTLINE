@@ -19,7 +19,7 @@ struct NpcSimulationState {
     NpcStatistics statistics;
     std::uint64_t nextDueTick{neverTick}; // DERIVED from per-NPC deadlines; never serialized.
 };
-enum class NpcEventKind : std::uint8_t { ActivityChanged, TravelStarted, TravelCompleted, TravelCancelled, Promoted, RelationshipChanged, OperationAssigned };
+enum class NpcEventKind : std::uint8_t { ActivityChanged, TravelStarted, TravelCompleted, TravelCancelled, Promoted, RelationshipChanged, OperationAssigned, Died };
 struct NpcEvent {
     NpcEventKind kind{}; NpcId npc, other; OperationId operation;
     std::uint64_t tick{};

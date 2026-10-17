@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 13 - Four-Year Strategic History completed and verified.
-Stop after Phase 13; do not begin Phase 14.
+Current phase: Phase 15 - Mission Core completed and verified.
+Stop after Phase 15; do not begin Phase 16.
 
 Completed:
 
@@ -94,9 +94,9 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 13 is ready for review.
+In progress: none. Phase 15 is ready for review.
 
-Next: Phase 14 / Story Graph Foundation after Phase 13 review. Do not start automatically.
+Next: Phase 16 / Drug Market Simulation after Phase 15 review. Do not start automatically.
 
 Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
@@ -386,3 +386,45 @@ permanent balancing/recruitment is not pulled into this phase.
 Full commands, measured outputs, algorithm and API limitations are recorded in
 docs/PHASE13_VERIFICATION.md, docs/STRATEGIC_HISTORY.md and docs/SAVE_FORMAT_V7.md.
 STOP after Phase 13. Phase 14 has not begun. Known blockers: none.
+
+## Phase 14 / Story Graph Foundation
+
+Completed and verified after inspecting/preserving all three pre-existing partial
+story source files and the untracked frozen v7 fixture. Deterministic post-history
+high-level possibilities use typed StoryNodeId, actual semantic world references,
+outcome prerequisites, success/failure branches, live world eligibility and
+existing-actor contact repair. Important NPC death never creates/resurrects an NPC
+or appoints a leader. Faction/territory/market/relationship authority remains with
+its existing systems. Runtime observation occurs only at coarse semantic changes.
+
+SaveFormatVersion 8 / StateHash v10; StoryGraphVersion 1. Real v1..v7 migrations,
+canonical save bytes, progressed graph continuation and malformed payload rejection
+pass. GeneratorVersion 3, HistoryVersion 1 and GameVersion 0.1.0 are unchanged.
+All three seed-12345 BaseWorldHash fixtures are independently rerun and unchanged.
+
+Canonical tools/build.ps1: exit 0, warning-clean, 22/22 CTest PASS in 622.60 s
+(633.16 s including build), CTEST_PARALLEL_LEVEL=4 for independent test processes.
+Each authoritative simulation remains single-threaded. Doctest totals: 163 cases,
+499821 assertions; new story suite 12 cases / 6689 assertions. All prior 19 gates
+remain, including 1000 small / 250 standard four-year histories with replay,
+worldgen 1..1000, both five-year market suites, runtime 250 x 30 / 25 x 365 days,
+all old migration, RNG, allocator, NPC and faction tests.
+
+New story standard-world batch 1..100: 7000 nodes, 6000 dependencies, 500 eligible
+roots, no invalid graphs or worlds without an eligible possibility, 1307 major-NPC
+references (per-world unique counts summed), all five factions covered per world;
+133 contact repairs after deterministic major-dealer death fixtures. 170.64 s
+under concurrent stress. Independent processes reproduce stdout and save SHA256.
+Seed 12345: 70 nodes / 60 edges / 5 eligible, StateHash 7c4539b8c6002849.
+
+Details: docs/STORY_GRAPH.md, docs/SAVE_FORMAT_V8.md and
+docs/PHASE14_VERIFICATION.md. The graph must be explicitly initialized after
+completed history; old saves remain uninitialized. Fixed opportunity templates,
+live derived invalidation and existing-actor substitution are this milestone's
+limits; no mission execution, dialogue, rewards, FIRST DELIVERY or organizational
+succession AI. Known blockers: none. STOP before Phase 15.
+
+## Phase 15 / Mission Core
+
+Completed and verified. Implemented generic mission system with MissionState lifecycle (AVAILABLE, ACCEPTED, ACTIVE, COMPLETED, FAILED, EXPIRED, INVALIDATED, RESOLVED_BY_NPC), objective graph (GO_TO, INTERACT, DELIVER, PROTECT, ATTACK), typed IDs (MissionId, ObjectiveId), MissionDefinition/MissionInstance separation, event-driven architecture via semantic events (LocationReached, InteractionOccurred, DeliveryOccurred, ProtectedTargetResolved, AttackTargetResolved), StoryGraph bridge, persistence (SaveFormatVersion 9, StateHash v11), validation, and deterministic save/load. All tests pass, including persistence, story, core, faction, NPC, territory, and market tests. Historical BaseWorldHash fixtures remain unchanged: v1 2938f0ca42162bc9, v2 5f3a446fe0d2f974, v3 888c5dbd10c15886.
+

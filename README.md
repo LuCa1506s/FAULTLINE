@@ -127,7 +127,7 @@ documented in [docs/WORLDGEN_M3.md](docs/WORLDGEN_M3.md).
 Save Foundation uses a separate `faultline_persistence` target, full semantic
 binary saves with versioned headers and bounded little-endian encoding. The
 memory/file API, snapshot policy and actual format are documented in
-[docs/SAVE_FORMAT_V7.md](docs/SAVE_FORMAT_V7.md), with real v1/v2/v3/v4/v5/v6 migration. The
+[docs/SAVE_FORMAT_V8.md](docs/SAVE_FORMAT_V8.md), with real v1..v7 migration. The
 [v1 document](docs/SAVE_FORMAT_V1.md) remains historical reference. The savecheck tool verifies
 round-trip hash/bytes and reports size/timing; it generates no files by default.
 Use `ctest --test-dir build -L persistence --output-on-failure` for save tests.
@@ -146,4 +146,31 @@ steps, daily coarse market accounting, paid dealer spread, actual garrison
 settlement and causal political/personal relationships. All five factions enter
 a viable, city-wide market with unresolved tensions. Monthly checkpoints save
 and resume exactly. See [STRATEGIC_HISTORY.md](docs/STRATEGIC_HISTORY.md) and
-[PHASE13_VERIFICATION.md](docs/PHASE13_VERIFICATION.md). Phase 14 is not started.
+[PHASE13_VERIFICATION.md](docs/PHASE13_VERIFICATION.md).
+
+Phase 14 adds an explicitly initialized post-history semantic story graph:
+
+```powershell
+build/faultline_story.exe --seed 12345 --fixture-prologue --save build/story.flsave
+build/faultline_story.exe --load build/history.flsave
+ctest --test-dir build -L story --output-on-failure
+```
+
+The graph projects high-level possibilities and success/failure branches, queries
+actual world eligibility and repairs invalid contacts using existing semantic
+actors. It never forces world outcomes. Save v8 / StateHash v10 persist graph
+identity, dependencies and outcomes. Details: [STORY_GRAPH.md](docs/STORY_GRAPH.md).
+This includes no Mission Core or runtime FIRST DELIVERY; stop before Phase 15.
+
+Phase 15 adds the Mission Core: generic mission system with MissionState lifecycle
+(AVAILABLE, ACCEPTED, ACTIVE, COMPLETED, FAILED, EXPIRED, INVALIDATED, RESOLVED_BY_NPC),
+objective graph (GO_TO, INTERACT, DELIVER, PROTECT, ATTACK), typed IDs (MissionId,
+ObjectiveId), MissionDefinition/MissionInstance separation, event-driven architecture
+via semantic events (LocationReached, InteractionOccurred, DeliveryOccurred,
+ProtectedTargetResolved, AttackTargetResolved), StoryGraph bridge, persistence
+(SaveFormatVersion 9, StateHash v11), validation, and deterministic save/load.
+All tests pass, including persistence, story, core, faction, NPC, territory, and
+market tests. Historical BaseWorldHash fixtures remain unchanged: v1 2938f0ca42162bc9,
+v2 5f3a446fe0d2f974, v3 888c5dbd10c15886.
+
+This includes no runtime FIRST DELIVERY; stop before Phase 16.

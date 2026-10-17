@@ -18,12 +18,14 @@ private:
     std::uint64_t value_{};
 };
 using OperationId = Id<OperationTag>;
+struct StoryNodeTag; using StoryNodeId = Id<StoryNodeTag>;
 struct EntityTag; using EntityId = Id<EntityTag>;
 struct NpcTag; using NpcId = Id<NpcTag>;
 struct FactionTag; using FactionId = Id<FactionTag>;
 struct TerritoryTag; using TerritoryId = Id<TerritoryTag>;
 struct DistrictTag; using DistrictId = Id<DistrictTag>;
 struct MissionTag; using MissionId = Id<MissionTag>;
+struct ObjectiveTag; using ObjectiveId = Id<ObjectiveTag>;
 struct VehicleTag; using VehiclePersistentId = Id<VehicleTag>;
 struct BuildingTag; using BuildingId = Id<BuildingTag>;
 struct ParcelTag; using ParcelId = Id<ParcelTag>;

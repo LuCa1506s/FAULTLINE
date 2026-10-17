@@ -147,6 +147,9 @@ void setNpcLifecycle(GameState& state,NpcId id,NpcLifecycle lifecycle,NpcEventBu
     core::require(!n.activeEntity || lifecycle==NpcLifecycle::Alive || lifecycle==NpcLifecycle::Injured,"Abstractify NPC before restrictive lifecycle transition");
     if (n.semantic.travel) cancelNpcTravel(state,id,events);
     n.lifecycle=lifecycle; n.semantic.operation={}; activity(state,id,restrictedActivity(lifecycle),events);
+    if (lifecycle == NpcLifecycle::Dead) {
+        events.push({NpcEventKind::Died, id, {}, {}, state.clock.tick()});
+    }
     n.semantic.nextUpdateTick=lifecycle==NpcLifecycle::Alive ? after(state.clock.tick(),state.npcSimulation.config.updateIntervalTicks) : neverTick;
     rebuildNpcSchedule(state);
 }

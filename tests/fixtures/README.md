@@ -73,3 +73,15 @@ SHA-256: `54ad68de755f3339a4f87111d07734ac49f2726a903ea99b9b43ceb642ec9236`.
 Phase 13 checks every original section payload unchanged through v7 migration,
 empty history and 335-day deterministic continuation. Do not regenerate this
 fixture with the new writer.
+
+## Phase 13 v7 fixture
+
+`save_v7_phase13.flsave` was already present untracked when Phase 14 resumed.
+It was inspected with the unmodified Phase 13 `faultline_savecheck --inspect`
+before the new serializer was built: v7, generator 3, seed 12345, tick 38400,
+StateHash ab44633b2677f8ec, Validation PASS. Size: 971960 bytes.
+SHA-256: `83dbd556987aaa4852de0314c6f3181b24890aeaead3ef8e254efaf40d98c6ef`.
+Exact original creation command is not recorded;
+this is a real Phase 13 format day-one runtime save, not a completed-history save.
+Phase 14 preserves its bytes and compares all fifteen old section payloads through
+v8 migration, then verifies deterministic continuation. Do not regenerate it.

@@ -4,6 +4,8 @@
 #include "simulation/territory/territory_system.hpp"
 #include "simulation/market/market_system.hpp"
 #include "simulation/history/history_system.hpp"
+#include "simulation/story/story_system.hpp"
+#include "simulation/missions/mission_system.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -35,6 +37,7 @@ GameState::GameState(WorldSeed seed, world::WorldGenerationConfig config, Genera
     simulation::initializeNpcSimulation(*this);
     simulation::initializeTerritorySimulation(*this);
     simulation::initializeMarketSimulation(*this);
+    simulation::initializeMissionSimulation(*this);
 }
 GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored)
     : metadata(meta), clock(time), randomness(std::move(random)), world(std::move(restored)) {
@@ -42,6 +45,7 @@ GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRand
     simulation::initializeNpcSimulation(*this);
     simulation::initializeTerritorySimulation(*this);
     simulation::initializeMarketSimulation(*this);
+    simulation::initializeMissionSimulation(*this);
 }
 void validateState(const GameState& state) {
     world::validateWorld(state.world);
@@ -50,6 +54,8 @@ void validateState(const GameState& state) {
     simulation::validateNpcSimulation(state);
     simulation::validateMarketSimulation(state);
     simulation::validateStrategicHistory(state);
+    simulation::validateStoryGraph(state);
+    simulation::validateMissionSimulation(state);
     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
@@ -69,7 +75,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v9"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v11"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)
@@ -80,6 +86,8 @@ std::uint64_t stateHash(const GameState& state) {
     simulation::appendTerritorySimulationHash(hash,state);
     simulation::appendMarketSimulationHash(hash,state);
     simulation::appendStrategicHistoryHash(hash,state);
+    simulation::appendStoryGraphHash(hash,state);
+    simulation::appendMissionSimulationHash(hash,state);
     return hash.value();
 }
 void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
@@ -106,7 +114,7 @@ void Simulation::tick(GameState& state, const TickInput& input) {
         core::require(i == 0 || input.commands[i-1].sequence < input.commands[i].sequence,
                       "Command sequence must be strictly increasing");
     }
-    events_.clear(); structuralChanges_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear();
+    events_.clear(); structuralChanges_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear();
     SimulationContext context{input.tick, events_, structuralChanges_, state.randomness};
     // Ingest diagnostic commands. Domain systems enter in the canonical pipeline order.
     for (const auto& command : input.commands) {
@@ -116,9 +124,28 @@ void Simulation::tick(GameState& state, const TickInput& input) {
     simulation::updateFactionOperations(state,factionEvents_);
     simulation::applyTerritoryConsequences(state,factionEvents_.values(),territoryEvents_);
     simulation::reconcileFactionOperations(state,factionEvents_);
+    const auto previousMarketUpdate=state.marketSimulation.updates;
     simulation::updateMarkets(state);
     simulation::evaluateFactions(state,factionEvents_);
     simulation::updateNpcs(state,npcEvents_,!factionEvents_.empty());
+    // Observe domain events for missions
+    for (const auto& ev : territoryEvents_.values()) {
+        simulation::onTerritoryControlChanged(state, ev.territory, missionEvents_);
+    }
+    for (const auto& ev : factionEvents_.values()) {
+        if (ev.kind == simulation::OperationEventKind::Resolved) {
+            simulation::onFactionOperationResolved(state, ev.operation, missionEvents_);
+        }
+    }
+    for (const auto& ev : npcEvents_.values()) {
+        if (ev.kind == simulation::NpcEventKind::Died) {
+            simulation::onNpcDied(state, ev.npc, missionEvents_);
+        }
+    }
+    simulation::updateMissions(state, missionEvents_);
+    // Observe only scheduled semantic mutations; never drive foreign world rules.
+    if (state.story.version && (!npcEvents_.empty() || !factionEvents_.empty() ||
+        !territoryEvents_.empty() || previousMarketUpdate!=state.marketSimulation.updates)) simulation::repairStoryGraph(state);
     context.structuralChanges.commit([&state](const auto& command) { world::applyStructuralCommand(state.world, command); });
     state.clock.advance();
 }
@@ -133,7 +160,7 @@ void Simulation::advanceHeadless(GameState& state, std::uint64_t ticks,
         if (state.clock.tick()<due) {
             // Only idle fixed ticks are skipped. Every scheduled mutation still uses tick().
             state.clock=core::SimulationClock{std::min(end,due)};
-            events_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear();
+            events_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear();
         }
         if (state.clock.tick()<end) {
             tick(state,{state.clock.tick(),{},{}});
