@@ -256,14 +256,14 @@ def run_phase(cfg: dict[str, Any], state: dict[str, Any], phase: int) -> bool:
             phase=phase, title=title, repo_root=ROOT, specs_root=ROOT.parent,
             next_phase=phase+1, phase_text=phase_text
         )
-        latest_impl = codex_call(
+        impl = codex_call(
             cfg, state, prompt=prompt,
             schema=SCHEMAS / "implementation.json",
             answer=phase_dir / "implementation.json",
             run_dir=phase_dir / "implementation",
             sandbox=cfg.get("implementation_sandbox", "workspace-write")
         )
-        save_json(phase_dir / "implementation-result.json", latest_impl)
+        save_json(phase_dir / "implementation-result.json", impl)
 
     latest_impl = impl
     if latest_impl["status"] == "blocked":
