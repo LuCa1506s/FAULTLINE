@@ -7,6 +7,7 @@
 #include "persistence/schema_v3.hpp"
 #include "legacy_save_v1.hpp"
 #include <fstream>
+#include "save_compatibility.hpp"
 #include <type_traits>
 
 using namespace faultline;
@@ -256,7 +257,7 @@ TEST_CASE("real Phase 9 v2 save with active operations migrates and continues de
     REQUIRE(migratedBytes.size()>bytes.size());
     // All eleven old sections are preserved byte for byte, independently of the
     // current encoder's new header/section dispatcher and migration defaults.
-    CHECK(std::equal(bytes.begin()+48,bytes.end(),migratedBytes.begin()+48));
+    CHECK(test::preservesHistoricalPayloads(bytes,migratedBytes));
     advanceTo(a,31*gameDayTicks); b=loadGameState(saveGameState(b)); advanceTo(b,31*gameDayTicks);
     CHECK(stateHash(a)==stateHash(b)); CHECK(a.npcSimulation.statistics.participations>0); CHECK_NOTHROW(validateState(a));
 }

@@ -47,6 +47,12 @@ struct Health {
     float current{100}, maximum{100};
     auto operator<=>(const Health&) const = default;
 };
+struct CharacterBody {
+    float yaw{};
+    float movementSpeed{5.0F};
+    float stanceHeight{1.75F};
+    auto operator<=>(const CharacterBody&) const = default;
+};
 enum class NpcActivity : std::uint8_t { Idle, Working, Travelling, Meeting, Hiding, FactionOperation, Arrested, Recovering };
 struct NpcTravelState {
     WorldLocation origin, destination;

@@ -8,6 +8,7 @@
 #include "simulation/runtime/game.hpp"
 #include "persistence/schema_v8.hpp"
 #include <fstream>
+#include "save_compatibility.hpp"
 using namespace faultline;
 using namespace faultline::simulation;
 using namespace faultline::persistence;
@@ -150,7 +151,8 @@ TEST_CASE("real phase13 v7 fixture migrates without touching any historical payl
     const SaveBytes old{std::istreambuf_iterator<char>{file},std::istreambuf_iterator<char>{}};
     REQUIRE(readSaveHeader(old).saveFormatVersion.value==7);auto s=loadGameState(old);
     CHECK(s.story.version==0);CHECK(s.story.nodes.entries().empty());
-    const auto current=saveGameState(s);CHECK(std::equal(old.begin()+48,old.end(),current.begin()+48));
+    const auto current=saveGameState(s);
+    CHECK(test::preservesHistoricalPayloads(old,current));
     auto loaded=loadGameState(current);Simulation sim;sim.advanceHeadless(s,gameDayTicks);sim.advanceHeadless(loaded,gameDayTicks);
     CHECK(saveGameState(s)==saveGameState(loaded));
 }
@@ -164,10 +166,16 @@ TEST_CASE("story malformed payload truncation oversized counts allocator and dan
     // Full story payload truncation sweep, including nested prerequisite arrays.
     for (auto end=start;end<good.size();++end) CHECK_THROWS_AS((void)loadGameState(std::span{good}.first(end)),SaveError);
 }
-TEST_CASE("completed history v7 wire projection migrates explicitly without inventing story outcomes") {
-    const auto s=prepared();auto bytes=saveGameState(s);
-    bytes.resize(payload(bytes)-8);bytes[16]=7;bytes[44]=15;
-    auto migrated=loadGameState(bytes);CHECK(migrated.story.version==0);
-    CHECK(migrated.history==s.history);CHECK(saveGameState(migrated)==saveGameState(s));
-    initializeStoryGraph(migrated);CHECK_NOTHROW(validateState(migrated));
+TEST_CASE("authentic completed history v7 migrates explicitly without inventing story outcomes") {
+    const auto path=std::filesystem::path{FAULTLINE_TEST_SOURCE_DIR}/"tests/fixtures/save_v7_completed_history.flsave";
+    std::ifstream file{path,std::ios::binary};REQUIRE(file.is_open());
+    const SaveBytes old{std::istreambuf_iterator<char>{file},std::istreambuf_iterator<char>{}};
+    REQUIRE(readSaveHeader(old).saveFormatVersion.value==7);
+    auto migrated=loadGameState(old);
+    CHECK(migrated.history.months==48);CHECK(migrated.story.version==0);
+    CHECK(test::preservesHistoricalPayloads(old,saveGameState(migrated)));
+    auto duplicate=loadGameState(old);
+    initializeStoryGraph(migrated);initializeStoryGraph(duplicate);
+    CHECK_NOTHROW(validateState(migrated));CHECK(stateHash(migrated)==stateHash(duplicate));
+    CHECK(saveGameState(migrated)==saveGameState(duplicate));
 }

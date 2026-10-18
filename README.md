@@ -1,3 +1,6 @@
+> Current checkpoint: **Phase 17 verified**, SaveFormatVersion 11 / StateHash v13.
+> Phase 18 has not started. Earlier phase sections below are historical checkpoints.
+
 # FAULTLINE
 
 Purpose-built C++20 engine for the FAULTLINE procedural crime sandbox. Canonical
@@ -174,3 +177,46 @@ market tests. Historical BaseWorldHash fixtures remain unchanged: v1 2938f0ca421
 v2 5f3a446fe0d2f974, v3 888c5dbd10c15886.
 
 This includes no runtime FIRST DELIVERY; stop before Phase 16.
+
+Phase 16 adds PRIMARY 001 FIRST DELIVERY: the canonical prologue mission implemented
+via the generic MissionSystem (GO_TO->INTERACT->DELIVER objective graph), procedural
+rival discovery through the fictional drug, and the structural four-year transition
+to the post-timeskip sandbox:
+
+```powershell
+build/faultline_prologue.exe --seed 12345 --verbose
+build/faultline_prologue.exe --seed 12345 --save build/prologue.flsave
+build/faultline_prologue.exe --load build/prologue.flsave --verbose
+build/faultline_prologue.exe --range 1 50 --replay
+ctest --test-dir build -L prologue --output-on-failure
+```
+
+The prologue creates exactly one PRIMARY 001 mission using the origin faction leader
+as giver and a major origin-faction NPC as recipient, with the abstract fictional
+product (token 1). Delivery completion triggers deterministic rival discovery from
+the six canonical incident categories (rival witness, betrayal, accidental exposure,
+police interference, wrong destination, information leak). The discovered rival
+then enters the four-year strategic history that stabilizes all five factions into
+the unstable five-faction market equilibrium. No physical entities are created during
+the prologue; no realistic production/trafficking mechanics are added. SaveFormatVersion
+advances to 10 (Prologue section) and StateHash to v12. Details:
+[FIRST_DELIVERY.md](docs/FIRST_DELIVERY.md), [SAVE_FORMAT_V10.md](docs/SAVE_FORMAT_V10.md),
+[PHASE16_VERIFICATION.md](docs/PHASE16_VERIFICATION.md). Phase 17 is not started.
+
+
+Phase 17 adds an explicit physical player with semantic movement/aim input,
+5 m/s fixed-50-ms movement, normalized cell/local positions, static swept collision,
+interaction intent, and deterministic logical streaming residency across save/load.
+The prologue tool remains headless and does not create a body implicitly.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configuration Release
+build-release/faultline_player.exe --seed 12345 --ticks 12000 --save build-release/player.flsave
+build-release/faultline_player.exe --range 1 25 --ticks 12000
+ctest --test-dir build-release -L player --output-on-failure
+```
+
+See [PLAYER_CONTROLLER.md](docs/PLAYER_CONTROLLER.md),
+[SAVE_FORMAT_V11.md](docs/SAVE_FORMAT_V11.md), and the measured
+[Phase 17 verification](docs/PHASE17_VERIFICATION.md). Character AI/combat/rendering
+are not included; stop before Phase 18.

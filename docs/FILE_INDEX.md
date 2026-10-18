@@ -278,3 +278,40 @@ New files:
 * None (all mission core files were created during Phase 15).
 
 Modified existing files: CMakeLists.txt; core/id/id.hpp (added MissionId, ObjectiveId); runtime/game_state.hpp (added missionSimulation); runtime/game.cpp and game.hpp (added mission simulation initialization, validation, event observation, and state hash); persistence/save.hpp and save.cpp (added mission simulation to save format, increased SaveFormatVersion to 9); simulation/story/story_system.cpp (added call to repairStoryGraph in the tick function); simulation/npc/npc_state.hpp (added NpcEventKind::Died); simulation/npc/npc_system.cpp (added event generation on NPC death).
+
+## Phase 16 / Prologue (PRIMARY 001)
+
+New files:
+
+* `src/simulation/prologue/prologue_state.hpp` — ProloguePhase enum, PrologueState struct.
+* `src/simulation/prologue/prologue_system.hpp` — Phase 16 public API.
+* `src/simulation/prologue/prologue_system.cpp` — Implementation of mission creation, headless execution, evidence generation, prologue transition.
+* `tools/prologue/main.cpp` — Headless prologue tool.
+* `tests/prologue_tests.cpp` — 43 end-to-end deterministic test cases.
+
+Modified existing files: CMakeLists.txt (added prologue system, tool, tests); runtime/game_state.hpp (added `prologue` member); runtime/game.cpp (initializePrologueState in constructors, validatePrologueState in validateState, appendPrologueStateHash in stateHash — StateHash v12); persistence/save.hpp (SaveFormatVersion 10); persistence/save.cpp (Section::Prologue, v9→v10 migration); persistence/schema_v10.hpp (PrologueState serialization); tests/persistence_tests.cpp (updated v8 fixture migration test).
+
+
+## Phase 17 / Player Physical Controller recovery
+
+New or completed inherited files:
+
+- `src/simulation/player/player_state.hpp` ? PlayerState v1 and NPC residency leases.
+- `src/simulation/player/player_system.hpp/.cpp` ? creation, movement, residency reconstruction, validation/hash.
+- `src/simulation/player/player_script.hpp` ? deterministic semantic verification command stream.
+- `src/world/spatial/character_movement.hpp/.cpp` ? shared ground-plane swept static collision/sliding.
+- `src/persistence/schema_v11.hpp` ? CharacterBody, PlayerState and residency encoding.
+- `tools/player/main.cpp` ? real movement/replay/checkpoint headless tool.
+- `tests/player_controller_tests.cpp` ? focused movement, collision, streaming, persistence and continuation tests.
+- `tests/determinism/player_process.cmake` ? actual moving-player process/save comparison.
+- `tests/save_compatibility.hpp` ? exact old payload comparison with explicit v11 Entities projection.
+- `tests/fixtures/save_v10_phase16.flsave` ? authentic recovered Phase 16 writer output.
+- `tests/fixtures/save_v7_completed_history.flsave` ? authentic historical v7 writer output.
+- `tests/fixtures/phase16_writer.patch`, `tools/recover_phase16_fixture.py` ? reproducible frozen Phase 16 source recovery.
+- `docs/PLAYER_CONTROLLER.md`, `docs/SAVE_FORMAT_V11.md`, `docs/PHASE17_VERIFICATION.md` ? architecture/encoding/evidence.
+
+Modified: CMakeLists; runtime game/state; world actor_types/world_state; save reader/writer;
+history/story/market/NPC/territory/persistence tests; fixtures README; README;
+DEVELOPMENT_STATUS; DETERMINISM. Inherited Phase 16 prologue/schema/tool/tests/docs
+remain present and uncommitted; prologue creates no physical entity. The inherited
+`.flsave.tmp` remains unused and unchanged, not a historical fixture.

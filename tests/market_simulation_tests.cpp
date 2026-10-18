@@ -8,6 +8,7 @@
 #include "world/spatial/streaming.hpp"
 #include "persistence/schema_v6.hpp"
 #include <fstream>
+#include "save_compatibility.hpp"
 using namespace faultline;
 using namespace faultline::simulation;
 using namespace faultline::persistence;
@@ -172,7 +173,7 @@ TEST_CASE("frozen real v5 migration preserves every old section without retroact
     CHECK(s.clock.tick()==30*gameDayTicks);CHECK(s.marketSimulation.updates==0);CHECK(s.marketSimulation.dealers.size()==5);
     for (const auto& [id,faction] : s.world.factions.entries()) { (void)faction;CHECK(income(s,id)==0); }
     const auto migrated=saveGameState(s);REQUIRE(migrated.size()>bytes.size());
-    CHECK(std::equal(bytes.begin()+48,bytes.end(),migrated.begin()+48));
+    CHECK(test::preservesHistoricalPayloads(bytes,migrated));
     CHECK(s.marketSimulation.nextUpdateTick==s.clock.tick()+gameHourTicks);
     auto resumed=loadGameState(migrated);Simulation sim;sim.advanceHeadless(s,365*gameDayTicks);sim.advanceHeadless(resumed,365*gameDayTicks);
     CHECK(saveGameState(s)==saveGameState(resumed));CHECK(stateHash(s)==stateHash(resumed));CHECK_NOTHROW(validateState(s));

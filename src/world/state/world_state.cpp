@@ -21,7 +21,8 @@ void destroyEntity(WorldState& world, EntityId id) {
     }
     if (world.vehicleLinks.contains(id)) world.vehicles.get(world.vehicleLinks.get(id).vehicle).activeEntity = {};
     world.npcLinks.remove(id); world.vehicleLinks.remove(id);
-    world.transforms.remove(id); world.health.remove(id); world.spatial.remove(id); world.entities.destroy(id);
+    world.transforms.remove(id); world.health.remove(id); world.characterBodies.remove(id);
+    world.spatial.remove(id); world.entities.destroy(id);
 }
 WorldState persistentSnapshot(const WorldState& world) {
     WorldState result = world;
@@ -60,6 +61,13 @@ void validateWorld(const WorldState& world) {
     };
     for (const auto& [id, health] : world.health.entries())
         core::require(world.entities.exists(id) && validHealth(health), "Invalid physical health");
+    const auto validCharacterBody = [](const CharacterBody& body) {
+        return std::isfinite(body.yaw) && body.yaw >= -3.14159265F && body.yaw <= 3.14159265F &&
+               std::isfinite(body.movementSpeed) && body.movementSpeed > 0 &&
+               std::isfinite(body.stanceHeight) && body.stanceHeight > 0;
+    };
+    for (const auto& [id, body] : world.characterBodies.entries())
+        core::require(world.entities.exists(id) && validCharacterBody(body), "Invalid character body");
     for (const auto& [id, npc] : world.npcs.entries()) {
         core::require(npc.identity.age <= AgeBand::OlderAdult, "Invalid NPC age band");
         core::require(npc.lifecycle <= NpcLifecycle::Dead, "Invalid NPC lifecycle");
@@ -171,6 +179,8 @@ void appendStateHash(core::StateHash& hash, const WorldState& world) {
     for (const auto& [id, transform] : world.transforms.entries()) { hash.u64(id.value()); appendPosition(transform.position); }
     hash.u64(world.health.entries().size());
     for (const auto& [id, health] : world.health.entries()) { hash.u64(id.value()); appendFloat(health.current); appendFloat(health.maximum); }
+    hash.u64(world.characterBodies.entries().size());
+    for (const auto& [id, body] : world.characterBodies.entries()) { hash.u64(id.value()); appendFloat(body.yaw); appendFloat(body.movementSpeed); appendFloat(body.stanceHeight); }
     hash.u64(world.entities.nextId()); hash.u64(world.entities.entries().size());
     for (auto id : world.entities.entries()) hash.u64(id.value());
     hash.u64(world.npcLinks.entries().size());

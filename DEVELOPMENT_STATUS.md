@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 15 - Mission Core completed and verified.
-Stop after Phase 15; do not begin Phase 16.
+Current phase: Phase 17 - Player Physical Controller completed and verified.
+Stop after Phase 17; do not begin Phase 18.
 
 Completed:
 
@@ -94,9 +94,9 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 15 completed and verified.
+In progress: none. Phase 17 completed and verified.
 
-Next: Phase 16 / Drug Market Simulation after Phase 15 review. Do not start automatically.
+Next: Phase 18 / Basic Character AI, only after Phase 17 review. Do not start automatically.
 
 Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
@@ -438,3 +438,71 @@ Final verification:
 - Fix: Added MissionSimulation persistence (Section::MissionSimulation, v9 format gate), fixed const-correctness in schema_v9.hpp fields functions for MissionInstance/ObjectiveCondition/ObjectiveRuntimeState.
 - Fix: Regenerated v8 fixture from authentic Phase 14 StoryGraph writer in a temporary git worktree; replaced corrupted/reconstructed fixture with proper v8-format binary. Added .gitattributes with *.flsave -text binary.
 
+## Phase 16 / Prologue (PRIMARY 001)
+
+Implemented canonical prologue mission system: FIRST DELIVERY using the generic MissionSystem
+(GO_TO→INTERACT→DELIVER objective graph), deterministic rival discovery via `historyPrologueCandidate`,
+abstract fictional product token, 48-month four-year transition via strategic history, and story graph
+initialization. `PrologueState` struct (version=1, phase, firstDelivery MissionId, origin/rival FactionId,
+giver/recipient NpcId, evidence) added to GameState. SaveFormatVersion 9→10, StateHash v11→v12.
+
+Key deliverables:
+- `src/simulation/prologue/prologue_state.hpp` — ProloguePhase enum, PrologueState struct
+- `src/simulation/prologue/prologue_system.hpp/.cpp` — runPrologue flow, createFirstDeliveryMission,
+  generatePrologueEvidence, commitPrologueEvidence, validatePrologueState
+- `src/simulation/runtime/game.cpp` — initializePrologueState in constructors, validatePrologueState
+  in validateState, appendPrologueStateHash in stateHash (FAULTLINE.state.v12)
+- `src/persistence/schema_v10.hpp` — PrologueState serialization
+- `src/persistence/save.hpp/.cpp` — Section::Prologue, v9→v10 migration
+- `tools/prologue/main.cpp` — headless prologue tool
+- `tests/prologue_tests.cpp` — 43 test cases / 270 assertions
+
+Verification:
+- CTest: 15/15 tests PASS (100%), incl. prologue_tests 43/43 cases / 270 assertions.
+- All prior Phase 15 gates remain green; Historical BaseWorldHash fixtures unchanged.
+- `tools/prologue` runs headless prologue on multiple seeds with save/load/resume.
+- Stop before Phase 17.
+
+
+
+## Phase 17 / Player Physical Controller ? verified recovery
+
+Recovered dirty Phase 16 + partial Phase 17 work; HEAD remains Phase 15 e60833b.
+No reset, clean, commit or external worktree mutation. Correct movement/body/save
+foundation retained. Found first continuation divergence at tick 11: original
+EntityRegistry.nextId=22, restored=35, caused by dropping NPC residency/handle
+reservations while retaining the allocator. Restoring logical leases BEFORE NPC
+rules fixes allocation, hysteresis and semantic scheduling without persisting
+transient bodies or excluding allocator state from StateHash. Also corrected
+2250 ms accelerated game-time movement to the actual 50 ms physical timestep.
+
+Player/body identity, bounded diagonal/analog movement, aim-facing, signed cell
+crossings, kinematic static collision/sliding and one-tick interaction intent are
+implemented headlessly. FIRST DELIVERY remains headless; physical body creation
+is explicit session setup. SaveFormatVersion 11, StateHash v13, PlayerStateVersion
+1. GeneratorVersion 3, HistoryVersion 1 and GameVersion 0.1.0 unchanged.
+Authentic v10 source writer recovered and independently reproduced, with the
+recorded Phase 16 v12 hash 2517a20c0ec2a76e. Historical tests retain byte-exact
+payload guarantees with only the explicit new empty CharacterBody field projected
+out. A genuine completed-history v7 writer fixture replaces synthetic wire truncation.
+
+Fresh canonical Release build: exit 0, **28/28 CTest PASS in 97.21 s** (111.268 s
+including configure/build), CTEST_PARALLEL_LEVEL=4. No current project compiler
+warnings/errors. Doctest **248 cases / 551422 assertions**, including five-year
+market stress; fast suites **247 / 288562**; player **32 / 49531**.
+
+Player seed 12345: 12000 commands, save at 6000 + continuation 6000, 24 cell
+crossings, StateHash 4c0523b02894026c, byte-identical process saves SHA-256
+97f570983eeb07d19dbc0325838190e056a580160818700e7c90cc7aa036cad1.
+Focused active-NPC checkpoint: 10 + 1700 ticks, per-tick hash/allocator/live IDs/RNG
+match. Hysteresis-ring restoration and 16000-command signed movement stress pass.
+Seeds 1..25 x 12000 commands: 593 cell crossings, zero invalid positions, duplicate
+players, lost components or save/continuation/hash mismatches; BatchHash
+2e768b07d7cd5861, 20.05 s. All existing 1000 worldgen/history, 250 standard history,
+100 story, 250 x 30-day and 25 x 365-day gates pass. BaseWorldHash v1/v2/v3 unchanged.
+See docs/PHASE17_VERIFICATION.md, PLAYER_CONTROLLER.md and SAVE_FORMAT_V11.md.
+
+Limits: ground-plane static collision only; no interiors/doors/vertical physics,
+NPC physical navigation, Character AI, combat, renderer or target interaction
+execution. Linear static-footprint scan is adequate for this milestone.
+No Phase 18 implementation; canonical parent documents unchanged.

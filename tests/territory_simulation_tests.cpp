@@ -6,6 +6,7 @@
 #include "persistence/schema_v4.hpp"
 #include "legacy_save_v1.hpp"
 #include <fstream>
+#include "save_compatibility.hpp"
 
 using namespace faultline;
 using namespace faultline::simulation;
@@ -201,7 +202,7 @@ TEST_CASE("v1 v2 v3 historical saves migrate without RNG consumption or replayin
         CHECK(stateHash(x)==stateHash(y));CHECK(saveGameState(x)==saveGameState(y));
         const auto migrated=saveGameState(x);
         REQUIRE(migrated.size()>bytes.size());
-        CHECK(std::equal(bytes.begin()+48,bytes.end(),migrated.begin()+48));
+        CHECK(test::preservesHistoricalPayloads(bytes,migrated));
         CHECK(x.territorySimulation.statistics.transitions==0);
         for (const auto& [id,t] : x.world.territories.entries()) CHECK(territoryControl(x,id).controller==t.owner);
         for (const auto& [id,op] : x.factionSimulation.operations.entries())
@@ -393,11 +394,17 @@ TEST_CASE("real v4 territory save migrates with zero resistance and preserves al
     CHECK(s.territorySimulation.statistics.transitions==50);
     for (const auto& [id,t] : s.territorySimulation.territories) { (void)id; CHECK(t.localResistance==0); }
     const auto migrated=saveGameState(s);CHECK(readSaveHeader(migrated).saveFormatVersion==currentSaveFormatVersion);
-    const auto oldPayload=payload(bytes,13),newPayload=payload(migrated,13);
-    REQUIRE(oldPayload==newPayload);
-    // Sections 1..12 including every RNG word, and V4's exact territory payload.
-    CHECK(std::equal(bytes.begin()+48,bytes.begin()+static_cast<std::ptrdiff_t>(oldPayload-8),migrated.begin()+48));
-    CHECK(std::equal(bytes.begin()+static_cast<std::ptrdiff_t>(oldPayload),bytes.end(),migrated.begin()+static_cast<std::ptrdiff_t>(newPayload)));
+    const auto oldSections=test::historicalPayloads(bytes),newSections=test::historicalPayloads(migrated);
+    for (const auto& [tag,body] : oldSections) {
+        REQUIRE(newSections.contains(tag));
+        if (tag!=13) CHECK(body==newSections.at(tag));
+        else {
+            // V5 appended resistance data to V4 territory payload. Preserve every
+            // original byte while permitting the already versioned extension.
+            REQUIRE(newSections.at(tag).size()>=body.size());
+            CHECK(std::equal(body.begin(),body.end(),newSections.at(tag).begin()));
+        }
+    }
     auto resumed=loadGameState(migrated);Simulation sim;sim.advanceHeadless(s,gameDayTicks);sim.advanceHeadless(resumed,gameDayTicks);
     CHECK(stateHash(s)==stateHash(resumed));CHECK(saveGameState(s)==saveGameState(resumed));CHECK_NOTHROW(validateState(s));
 }

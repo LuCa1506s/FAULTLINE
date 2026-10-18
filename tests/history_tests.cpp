@@ -7,6 +7,7 @@
 #include "simulation/runtime/game.hpp"
 #include "persistence/schema_v7.hpp"
 #include <fstream>
+#include "save_compatibility.hpp"
 using namespace faultline;
 using namespace faultline::simulation;
 using namespace faultline::persistence;
@@ -184,7 +185,7 @@ TEST_CASE("real v6 saves migrate without changing fourteen historical sections o
     REQUIRE(file.is_open());const SaveBytes bytes{std::istreambuf_iterator<char>{file},std::istreambuf_iterator<char>{}};
     REQUIRE(readSaveHeader(bytes).saveFormatVersion.value==6);auto s=loadGameState(bytes);
     CHECK(s.history==StrategicHistory{});const auto migrated=saveGameState(s);
-    CHECK(std::equal(bytes.begin()+48,bytes.end(),migrated.begin()+48));
+    CHECK(test::preservesHistoricalPayloads(bytes,migrated));
     auto restored=loadGameState(migrated);Simulation sim;
     sim.advanceHeadless(s,335*gameDayTicks);sim.advanceHeadless(restored,335*gameDayTicks);
     CHECK(saveGameState(s)==saveGameState(restored));CHECK_NOTHROW(validateState(s));

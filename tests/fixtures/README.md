@@ -100,3 +100,68 @@ A `.gitattributes` rule (`*.flsave -text binary`) was added to prevent CRLF
 corruption of binary fixtures by `core.autocrlf=true`. The previous reconstructed/v9-stripped
 fixture was 2028838 bytes with SHA-256 `6a3d6cbe26bdc962ad94e3b5d3c59d9c01323118af76979810030ac98ed23708`
 and failed Phase 14 savecheck ("Not a FAULTLINE save").
+
+## Phase 15 v9 fixture
+
+`save_v9_phase15.flsave` is the authentic Phase 15 v9-format save generated from
+the unmodified Phase 15 StoryGraph writer (`faultline_story.exe --seed 12345 --fixture-prologue --save`) in a temporary git worktree at commit `e60833b` (Phase 15: Mission Core), before Phase 16 source files were built.
+It contains Seed 12345, GeneratorVersion 3, SaveFormatVersion 9, tick 56064000 (48 months),
+StateHash `a6b8caa50de9fb90` (FAULTLINE.state.v11 — Phase 15 hash), StoryGraphVersion 1, 70 nodes, 60 edges.
+The fixture validates PASS under Phase 15 and migrates to v10 under Phase 16 with
+PrologueState initialized to defaults (PreMission). Size: 1006174 bytes.
+SHA-256: `d376e7f56e4787685cacff4c64402f143ea2e5aff455868ec85f6a875c355c7c`.
+Do not regenerate with the current v10 writer — the fixture must be a real Phase 15 artifact.
+
+
+## Phase 17 recovery: authentic Phase 16 v10 fixture
+
+`save_v10_phase16.flsave` is emitted by the actual v10 writer reconstructed from
+Phase 15 commit `e60833b` plus the inherited uncommitted Phase 16 source additions.
+Only identified Phase 17 changes were excluded in an isolated repository-local
+source copy; no save bytes or headers were patched. The frozen source delta is
+`phase16_writer.patch`; `python tools/recover_phase16_fixture.py` reproduces that
+writer under `build/phase16-writer-reproduction` (refuses existing destinations).
+Build its `faultline_prologue` target with BUILD_TESTING=OFF, Release/C++20, then:
+
+```powershell
+build/phase16-writer-reproduction/out/faultline_prologue.exe --seed 12345 --save build/phase16-writer-reproduction/reproduced.flsave --verbose
+```
+
+Two independently built recovered writers emitted byte-identical results.
+Writer validation PASS: SaveFormatVersion 10, GeneratorVersion 3, seed 12345,
+tick 56064000, completed FIRST DELIVERY, 48 months, StoryGraph initialized,
+StateHash v12 `2517a20c0ec2a76e` (the verified Phase 16 checkpoint).
+Size: **1007684 bytes**. SHA-256:
+`86faa3bdbea5a9950590a0617f2f824c9cb5d765a52d910d0823c2d7dfa5fecd`.
+Current v11 migration preserves all old section payloads, inserts only the new
+empty CharacterBody collection, and defaults PlayerState without creating a body.
+
+The inherited file of this name was valid v10 (1006269 bytes, SHA-256
+`fecb0056a6ca1e00fad3e15c17c604a8e703177d9c4d39b546af9d3e6ae8d8b5`),
+but had undocumented provenance and v12 hash `a99f1afce409ff8e`, not the recorded
+complete Phase 16 checkpoint. It was preserved as
+`build/phase16-writer/inherited-v10.flsave` before the explicit replacement.
+The inherited `save_v10_phase16.flsave.tmp` is actually v11 (1006317 bytes,
+SHA-256 `883c029c35b99548d5a8453493d32054b3418fd4ba6334ec550c6d5f79624b5f`).
+It was NOT used as a historical fixture or silently renamed/converted. Its bytes
+remain untouched as inherited recovery evidence, with another copy under build/.
+External stale worktrees were inspected but not modified, pruned or deleted.
+
+## Authentic completed-history v7 fixture
+
+`save_v7_completed_history.flsave` replaces the former synthetic test method that
+truncated a newer-format save. Existing `save_v7_phase13.flsave` remains untouched.
+Sources: unmodified `git archive 1d5c2e7`, extracted only into `build/phase13-writer`.
+Build actual historical `faultline_history` and `faultline_savecheck` targets, then:
+
+```powershell
+build/phase13-writer/out/faultline_history.exe --seed 12345 --fixture-prologue --save tests/fixtures/save_v7_completed_history.flsave
+build/phase13-writer/out/faultline_savecheck.exe --inspect tests/fixtures/save_v7_completed_history.flsave
+```
+
+Actual writer v7, generator 3, seed 12345, tick 56064000, 48 months / 372 events,
+StateHash v9 `62a8488f568a6102`, Validation PASS. Size **1000894 bytes**.
+SHA-256: `15272adffbbc6b3ff108583a7423106caf3e96e062f07d585d69d24bb09a32ce`.
+Tests preserve every historical payload, migrate with an uninitialized graph,
+then explicitly generate equal graphs/hashes/canonical bytes from duplicate loads.
+No historical payload was fabricated from a newer save format.

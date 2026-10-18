@@ -27,6 +27,7 @@ struct WorldState {
     ComponentStore<VehicleLink> vehicleLinks;
     ComponentStore<Transform> transforms;
     ComponentStore<Health> health;
+    ComponentStore<CharacterBody> characterBodies;
     SpatialGrid spatial;
     NpcStore npcs;
     FactionStore factions;

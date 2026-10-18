@@ -107,6 +107,10 @@ HistoryVersion stays 1 and GameVersion stays 0.1.0. BaseWorldHash excludes story
 All old save migrations preserve their world and default to an uninitialized graph;
 initialization is explicit and never invents missing prologue evidence.
 
+**Phase 16 update**: SaveFormatVersion advances to 10 (Prologue section, see
+SAVE_FORMAT_V10.md) and StateHash advances to `FAULTLINE.state.v12` (prologue
+state appended via `appendPrologueStateHash`). StoryGraph fields are unchanged.
+
 The validator rejects unsupported versions, malformed empty graphs, excessive
 nodes, duplicate semantic possibilities, invalid enums/references/locations,
 wrong contact affiliation, bad history provenance and invalid dependencies.

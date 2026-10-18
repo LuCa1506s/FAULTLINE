@@ -6,6 +6,9 @@
 #include "simulation/history/history_system.hpp"
 #include "simulation/story/story_system.hpp"
 #include "simulation/missions/mission_system.hpp"
+#include "simulation/prologue/prologue_system.hpp"
+#include "simulation/player/player_system.hpp"
+#include "world/spatial/streaming.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -38,6 +41,8 @@ GameState::GameState(WorldSeed seed, world::WorldGenerationConfig config, Genera
     simulation::initializeTerritorySimulation(*this);
     simulation::initializeMarketSimulation(*this);
     simulation::initializeMissionSimulation(*this);
+    simulation::initializePrologueState(*this);
+    simulation::initializePlayerState(*this);
 }
 GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored)
     : metadata(meta), clock(time), randomness(std::move(random)), world(std::move(restored)) {
@@ -46,6 +51,8 @@ GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRand
     simulation::initializeTerritorySimulation(*this);
     simulation::initializeMarketSimulation(*this);
     simulation::initializeMissionSimulation(*this);
+    simulation::initializePrologueState(*this);
+    simulation::initializePlayerState(*this);
 }
 void validateState(const GameState& state) {
     world::validateWorld(state.world);
@@ -56,6 +63,8 @@ void validateState(const GameState& state) {
     simulation::validateStrategicHistory(state);
     simulation::validateStoryGraph(state);
     simulation::validateMissionSimulation(state);
+    simulation::validatePrologueState(state);
+    simulation::validatePlayerState(state);
     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
@@ -75,7 +84,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v11"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v13"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)
@@ -88,6 +97,8 @@ std::uint64_t stateHash(const GameState& state) {
     simulation::appendStrategicHistoryHash(hash,state);
     simulation::appendStoryGraphHash(hash,state);
     simulation::appendMissionSimulationHash(hash,state);
+    simulation::appendPrologueStateHash(hash,state);
+    simulation::appendPlayerStateHash(hash,state);
     return hash.value();
 }
 void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
@@ -105,6 +116,7 @@ std::vector<GameCommand> CommandQueue::take(std::uint64_t tick) {
 }
 void Simulation::tick(GameState& state, const TickInput& input) {
     core::require(!state.history.version || state.history.months==simulation::historyMonths,"Finish strategic history before runtime simulation");
+    core::require(state.prologue.phase!=simulation::ProloguePhase::DeliveryComplete,"Commit prologue delivery before runtime simulation");
     core::require(input.tick == state.clock.tick(), "Tick input mismatch");
     core::require(state.clock.tick() < core::SimulationClock::maxTick, "Tick counter exhausted");
     core::require(std::isfinite(input.player.moveX) && std::isfinite(input.player.moveZ) &&
@@ -114,6 +126,9 @@ void Simulation::tick(GameState& state, const TickInput& input) {
         core::require(i == 0 || input.commands[i-1].sequence < input.commands[i].sequence,
                       "Command sequence must be strictly increasing");
     }
+    // Restore logical streaming residency before NPC rules inspect materialization.
+    // Reusing an existing allocation lease must not consume another EntityId.
+    simulation::restorePlayerResidency(state);
     events_.clear(); structuralChanges_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear();
     SimulationContext context{input.tick, events_, structuralChanges_, state.randomness};
     // Ingest diagnostic commands. Domain systems enter in the canonical pipeline order.
@@ -147,6 +162,11 @@ void Simulation::tick(GameState& state, const TickInput& input) {
     if (state.story.version && (!npcEvents_.empty() || !factionEvents_.empty() ||
         !territoryEvents_.empty() || previousMarketUpdate!=state.marketSimulation.updates)) simulation::repairStoryGraph(state);
     context.structuralChanges.commit([&state](const auto& command) { world::applyStructuralCommand(state.world, command); });
+    simulation::updatePlayerMovement(state, input.player, streaming_);
+    playerIntents_.clear();
+    if (input.player.interactPressed && state.player.controlledEntity)
+        playerIntents_.push({state.player.controlledEntity,state.world.transforms.get(state.player.controlledEntity).position,
+                            state.player.yaw,state.clock.tick()});
     state.clock.advance();
 }
 void Simulation::advanceHeadless(GameState& state, std::uint64_t ticks,

@@ -259,3 +259,17 @@ Independent-process tests compare both stdout/StateHash and canonical save SHA25
 V1..v8 saves default to an uninitialized mission system without changing their
 existing payloads. Worldgen and HistoryVersion stay unchanged.
 See MISSION_CORE.md and SAVE_FORMAT_V9.md. No Phase 16 drug market state is added.
+
+
+## Phase 17 / physical player and save v11
+
+Current StateHash is `FAULTLINE.state.v13`; Phase 16 was v12 (prologue).
+Physical movement uses the 50 ms fixed timestep, not the accelerated 2250 ms
+semantic game-time increment. Position/body/player identity and logical NPC
+streaming allocation leases are hashed. The EntityRegistry allocator remains
+persisted/hashed, including after transient NPC bodies are removed from snapshots.
+Leased bodies are reconstructed without allocation before tick rules run. This
+preserves hysteresis and semantic NPC scheduling across save/load, not just the
+immediate snapshot. Real movement process tests compare stdout and canonical save
+SHA-256; per-tick continuation tests compare IDs, allocator and RNG as well as
+StateHash. See PLAYER_CONTROLLER.md and PHASE17_VERIFICATION.md. No Phase 18 AI.

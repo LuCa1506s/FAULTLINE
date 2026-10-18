@@ -1,6 +1,7 @@
 #pragma once
 #include "core/diagnostics/diagnostics.hpp"
 #include "core/events/ordered_buffer.hpp"
+#include "world/spatial/streaming.hpp"
 #include "simulation/runtime/game_state.hpp"
 #include <vector>
 #include <functional>
@@ -31,6 +32,8 @@ private:
     std::vector<GameCommand> pending_;
 };
 struct ValidationCompleted { std::uint64_t tick{}, commandSequence{}; };
+struct PlayerInteractionIntent { EntityId actor; WorldPosition position; float yaw; std::uint64_t tick; };
+using PlayerIntentBuffer = core::OrderedBuffer<PlayerInteractionIntent>;
 using DomainEventBuffer = core::OrderedBuffer<ValidationCompleted>;
 using StructuralCommandBuffer = core::OrderedBuffer<world::StructuralCommand>;
 struct SimulationContext {
@@ -49,13 +52,16 @@ public:
     [[nodiscard]] const simulation::TerritoryEventBuffer& territoryEvents() const { return territoryEvents_; }
     [[nodiscard]] const simulation::NpcEventBuffer& npcEvents() const { return npcEvents_; }
     [[nodiscard]] const simulation::MissionEventBuffer& missionEvents() const { return missionEvents_; }
+    [[nodiscard]] const PlayerIntentBuffer& playerIntents() const { return playerIntents_; }
 private:
+    PlayerIntentBuffer playerIntents_;
     simulation::NpcEventBuffer npcEvents_;
     simulation::TerritoryEventBuffer territoryEvents_;
     DomainEventBuffer events_;
     StructuralCommandBuffer structuralChanges_;
     simulation::FactionEventBuffer factionEvents_;
     simulation::MissionEventBuffer missionEvents_;
+    world::WorldStreamingSystem streaming_;
 };
 class Game {
 public:
