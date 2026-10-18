@@ -1,5 +1,5 @@
-> Current checkpoint: **Phase 17 verified**, SaveFormatVersion 11 / StateHash v13.
-> Phase 18 has not started. Earlier phase sections below are historical checkpoints.
+> Current checkpoint: **Phase 19 verified**, SaveFormatVersion 12 / StateHash v14.
+> Phase 20 has not started. Earlier phase sections below are historical checkpoints.
 
 # FAULTLINE
 
@@ -234,3 +234,12 @@ ctest --test-dir build-release -L character_ai --output-on-failure
 See [CHARACTER_AI.md](docs/CHARACTER_AI.md) and
 [PHASE18_VERIFICATION.md](docs/PHASE18_VERIFICATION.md). Attack intent is approach
 movement only; combat, police and vehicle AI remain outside Phase 18.
+
+## Phase 19 / combat foundation
+
+`CombatSystem` converts player and active-NPC attack intent into validated range,
+static line-of-sight resolution, existing Health changes and semantic NPC death.
+Pistol, shotgun and SMG definitions are immutable; instances persist ammo and
+tick-based cooldown/reload state. SaveFormatVersion 12 and StateHash v14 add this
+runtime state. Run `faultline_combat --seed 12345 --rounds 6` for a headless
+deterministic scenario. See [COMBAT.md](docs/COMBAT.md).

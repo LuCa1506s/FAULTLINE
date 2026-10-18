@@ -255,7 +255,7 @@ TEST_CASE("file persistence has explicit IO failures and cleans test artifacts")
     CHECK_THROWS_AS((void)loadGameStateFile(directory/"missing.flsave"),SaveError);
     CHECK_THROWS_AS(saveGameStateFile(state,directory/"missing"/"save.flsave"),SaveError);
 }
-TEST_CASE("v8 fixture loads and migrates to v11 with MissionSimulation, PrologueState and PlayerState initialized") {
+TEST_CASE("v8 fixture loads and migrates to current state with later systems initialized") {
     const auto path=std::filesystem::path{FAULTLINE_TEST_SOURCE_DIR}/"tests/fixtures/save_v8_phase14.flsave";
     GameState state=loadGameStateFile(path);
     CHECK(state.metadata.generatorVersion.value==3);
@@ -266,7 +266,7 @@ TEST_CASE("v8 fixture loads and migrates to v11 with MissionSimulation, Prologue
     CHECK(state.prologue.phase==simulation::ProloguePhase::PreMission);
     const auto beforeHash=stateHash(state);
     const auto bytes=saveGameState(state);
-    CHECK(bytes[16]==11);
+    CHECK(bytes[16]==currentSaveFormatVersion.value);
     auto reloaded=loadGameState(bytes);
     CHECK(stateHash(reloaded)==beforeHash);
     CHECK(saveGameState(reloaded)==bytes);

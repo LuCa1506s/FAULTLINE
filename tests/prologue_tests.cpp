@@ -500,7 +500,7 @@ TEST_CASE("Prologue state is included in StateHash") {
     CHECK(stateHash(restored) == postHash);
 }
 
-TEST_CASE("v8 fixture migrates to v11 with default PrologueState and PlayerState") {
+TEST_CASE("v8 fixture migrates to current state with default PrologueState and PlayerState") {
     const auto path = std::filesystem::path{FAULTLINE_TEST_SOURCE_DIR}/"tests/fixtures/save_v8_phase14.flsave";
     GameState state = loadGameStateFile(path);
     CHECK(state.prologue.version == currentPrologueStateVersion);
@@ -508,13 +508,13 @@ TEST_CASE("v8 fixture migrates to v11 with default PrologueState and PlayerState
     
     CHECK(!state.prologue.firstDelivery.value());
     const auto bytes = saveGameState(state);
-    CHECK(bytes[16] == 11);
+    CHECK(bytes[16] == currentSaveFormatVersion.value);
     auto reloaded = loadGameState(bytes);
     CHECK(stateHash(reloaded) == stateHash(state));
     CHECK(saveGameState(reloaded) == bytes);
 }
 
-TEST_CASE("v9 fixture migrates to v11 with default PrologueState and PlayerState") {
+TEST_CASE("v9 fixture migrates to current state with default PrologueState and PlayerState") {
     const auto path = std::filesystem::path{FAULTLINE_TEST_SOURCE_DIR}/"tests/fixtures/save_v9_phase15.flsave";
     GameState state = loadGameStateFile(path);
     CHECK(state.metadata.generatorVersion.value == 3);
@@ -527,7 +527,7 @@ TEST_CASE("v9 fixture migrates to v11 with default PrologueState and PlayerState
     CHECK(state.story.version == 1);
     const auto beforeHash = stateHash(state);
     const auto bytes = saveGameState(state);
-    CHECK(bytes[16] == 11);
+    CHECK(bytes[16] == currentSaveFormatVersion.value);
     auto reloaded = loadGameState(bytes);
     CHECK(stateHash(reloaded) == beforeHash);
     CHECK(saveGameState(reloaded) == bytes);

@@ -333,3 +333,13 @@ Modified: CMakeLists.txt; runtime game tick/event access; NPC promotion;
 player residency reconstruction; streaming materialization; world validation;
 the player diagnostic body count; DEVELOPMENT_STATUS, README and DETERMINISM.
 No save schema, StateHash schema, generator or canonical parent document changed.
+
+## Phase 19 / Combat
+
+- `src/simulation/combat/combat_state.hpp` - weapon instances, loadouts and deadlines.
+- `src/simulation/combat/combat_system.hpp/.cpp` - validation, LoS, damage and death.
+- `src/persistence/schema_v12.hpp` - explicit combat wire fields.
+- `tools/combat/main.cpp` - headless combat and continuation diagnostics.
+- `tests/combat_tests.cpp` and `tests/determinism/combat_process.cmake` - focused and process tests.
+- `tests/fixtures/save_v11_phase18.flsave` - authentic pre-Phase19 fixture.
+- `docs/COMBAT.md`, `docs/SAVE_FORMAT_V12.md`, `docs/PHASE19_VERIFICATION.md`.

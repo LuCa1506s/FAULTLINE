@@ -1,4 +1,4 @@
-#include "persistence/schema_v11.hpp"
+#include "persistence/schema_v12.hpp"
 #include "simulation/factions/faction_system.hpp"
 #include "simulation/npc/npc_system.hpp"
 #include "simulation/territory/territory_system.hpp"
@@ -6,6 +6,7 @@
 #include "simulation/missions/mission_system.hpp"
 #include "simulation/prologue/prologue_system.hpp"
 #include "simulation/player/player_system.hpp"
+#include "simulation/combat/combat_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <fstream>
 #include <sstream>
@@ -20,9 +21,9 @@ SaveError::SaveError(SaveErrorCode errorCode, std::string errorSection, std::siz
 namespace {
 using detail::Writer;
 using detail::Reader;
-    enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation, Prologue, Player };
+    enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation, Prologue, Player, Combat };
     constexpr std::uint32_t legacySectionCount=10;
-    constexpr std::uint32_t sectionCount=19;
+    constexpr std::uint32_t sectionCount=20;
 void header(Reader& r) {
     r.need(saveMagic.size());
     for (auto expected : saveMagic) {
@@ -177,6 +178,11 @@ SaveBytes saveGameState(const GameState& state) {
         });
         section(w,Section::Prologue,[&](Writer& a){ a(state.prologue); });
         section(w,Section::Player,[&](Writer& a){ a(state.player); });
+        section(w,Section::Combat,[&](Writer& a){
+            const auto& c=state.combat; a(c.version); writeStore(a,c.weapons); a(c.player);
+            a.collection(c.npcs.size()); for (const auto& [id,value]:c.npcs) a(id,value);
+            a(c.statistics);
+        });
         return std::move(w.bytes);
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) {
@@ -189,7 +195,7 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
     if (bytes.size()>maxSaveBytes) r.fail(SaveErrorCode::InvalidData,"Save resource limit");
     try {
         header(r); std::uint32_t count{}; r(count);
-        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : r.header.saveFormatVersion.value==7 ? 15U : r.header.saveFormatVersion.value==8 ? 16U : r.header.saveFormatVersion.value==9 ? 17U : r.header.saveFormatVersion.value==10 ? 18U : sectionCount))
+        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : r.header.saveFormatVersion.value==7 ? 15U : r.header.saveFormatVersion.value==8 ? 16U : r.header.saveFormatVersion.value==9 ? 17U : r.header.saveFormatVersion.value==10 ? 18U : r.header.saveFormatVersion.value==11 ? 19U : sectionCount))
             r.fail(SaveErrorCode::InvalidData,"Incorrect section count");
         world::WorldState world; RuntimeRandomState random{r.header.worldSeed}; core::SimulationClock clock;
         section(r,Section::Runtime,"runtime",[&](Reader& a){
@@ -315,6 +321,14 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         if (r.header.saveFormatVersion.value>=10) section(r,Section::Prologue,"prologue",[&](Reader& a){ a(prologue); });
         simulation::PlayerState player;
         if (r.header.saveFormatVersion.value>=11) section(r,Section::Player,"player",[&](Reader& a){ a(player); });
+        simulation::CombatSimulationState combat;
+        if (r.header.saveFormatVersion.value>=12) section(r,Section::Combat,"combat",[&](Reader& a){
+            a(combat.version); readStore(a,combat.weapons); a(combat.player); const auto countCombatants=a.count(); NpcId previous{};
+            for(std::uint32_t i=0;i<countCombatants;++i){NpcId id{};simulation::CombatantState value;a(id,value);
+                if(!id || id<=previous) a.fail(SaveErrorCode::InvalidData,"Invalid NPC combatant order");
+                previous=id;combat.npcs.emplace(id,value);}
+            a(combat.statistics);
+        });
         if (r.remaining()!=0) r.fail(SaveErrorCode::InvalidData,"Trailing save data");
         r.section="semantic validation";
         GameState state{{r.header.worldSeed,r.header.generatorVersion},clock,std::move(random),std::move(world)};
@@ -347,6 +361,8 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         else simulation::initializePrologueState(state);
         if (r.header.saveFormatVersion.value>=11) state.player=std::move(player);
         else simulation::initializePlayerState(state);
+        if (r.header.saveFormatVersion.value>=12) state.combat=std::move(combat);
+        else simulation::initializeCombatSimulation(state);
         validateLoaded(state,r); return state;
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) { r.fail(SaveErrorCode::ValidationFailure,e.what()); }

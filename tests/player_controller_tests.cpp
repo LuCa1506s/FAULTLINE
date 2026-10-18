@@ -162,7 +162,7 @@ TEST_CASE("player save/load round-trip preserves position, health, and yaw") {
     const auto before = stateHash(state);
     const auto bytes = saveGameState(state);
     CHECK(bytes[16] == currentSaveFormatVersion.value);
-    CHECK(bytes[16] == 11);
+    CHECK(bytes[16] == currentSaveFormatVersion.value);
     auto restored = loadGameState(bytes);
     CHECK(stateHash(restored) == before);
     CHECK(saveGameState(restored) == bytes);
@@ -172,7 +172,7 @@ TEST_CASE("player save/load round-trip preserves position, health, and yaw") {
     CHECK(restored.world.characterBodies.get(restored.player.controlledEntity).yaw == doctest::Approx(1.5F));
 }
 
-TEST_CASE("v9 fixture loads and migrates to v11 with default PlayerState") {
+TEST_CASE("v9 fixture loads and migrates to current state with default PlayerState") {
     const auto path = std::filesystem::path{FAULTLINE_TEST_SOURCE_DIR}/"tests/fixtures/save_v9_phase15.flsave";
     GameState state = loadGameStateFile(path);
     CHECK(state.metadata.generatorVersion.value == 3);
@@ -184,7 +184,7 @@ TEST_CASE("v9 fixture loads and migrates to v11 with default PlayerState") {
     const auto beforeHash = stateHash(state);
     const auto bytes = saveGameState(state);
     CHECK(bytes[16] == currentSaveFormatVersion.value);
-    CHECK(bytes[16] == 11);
+    CHECK(bytes[16] == currentSaveFormatVersion.value);
     auto reloaded = loadGameState(bytes);
     CHECK(stateHash(reloaded) == beforeHash);
     CHECK(saveGameState(reloaded) == bytes);

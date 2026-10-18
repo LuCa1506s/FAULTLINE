@@ -289,3 +289,11 @@ into NpcState, while facing is deterministically reconstructed from intent (zero
 idle). SaveFormatVersion 11 and StateHash `FAULTLINE.state.v13` remain sufficient.
 Focused continuation compares hash, allocator, residency, Transform and CharacterBody
 after every tick; independent processes compare full output and save SHA-256.
+
+## Phase 19 / combat and save v12
+
+Combat resolution uses stable semantic ordering. Range uses global cell-aware
+positions; static line of sight visits canonical generated arrays. The guaranteed
+hit model consumes no RNG. Cooldown and reload deadlines use integer simulation
+ticks. Weapon instances, ammo and deadlines are persisted and hashed by
+`FAULTLINE.state.v14`; transient intent/event buffers are excluded.

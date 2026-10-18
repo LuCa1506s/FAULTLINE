@@ -4,6 +4,7 @@
 #include "world/spatial/streaming.hpp"
 #include "simulation/runtime/game_state.hpp"
 #include "simulation/npc/character_ai.hpp"
+#include "simulation/combat/combat_system.hpp"
 #include <vector>
 #include <functional>
 
@@ -17,7 +18,7 @@ struct GameCommand {
 };
 struct PlayerInputFrame {
     float moveX{}, moveZ{}, aimX{}, aimZ{};
-    bool shootHeld{}, shootPressed{}, interactPressed{}, enterVehiclePressed{};
+    bool shootHeld{}, shootPressed{}, interactPressed{}, enterVehiclePressed{}, reloadPressed{};
 };
 struct TickInput {
     std::uint64_t tick{};
@@ -55,9 +56,11 @@ public:
     [[nodiscard]] const simulation::MissionEventBuffer& missionEvents() const { return missionEvents_; }
     [[nodiscard]] const PlayerIntentBuffer& playerIntents() const { return playerIntents_; }
     [[nodiscard]] const simulation::CharacterAiEventBuffer& characterAiEvents() const { return characterAiEvents_; }
+    [[nodiscard]] const simulation::CombatEventBuffer& combatEvents() const { return combatEvents_; }
 private:
     PlayerIntentBuffer playerIntents_;
     simulation::CharacterAiEventBuffer characterAiEvents_;
+    simulation::CombatEventBuffer combatEvents_;
     simulation::NpcEventBuffer npcEvents_;
     simulation::TerritoryEventBuffer territoryEvents_;
     DomainEventBuffer events_;

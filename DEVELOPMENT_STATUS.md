@@ -531,3 +531,14 @@ Phase 19; no combat, police or vehicle AI is implemented.
 Fresh canonical Release gate: exit 0, 31/31 CTest PASS in 114.08 s (155.634 s
 including configure/build), 259 doctest cases / 1,113,191 assertions PASS. Fast
 regression: 20/20 in 8.05 s. Historical BaseWorldHash v1/v2/v3 unchanged.
+
+## Phase 19 / Combat — verified
+
+Authoritative attack intents, pistol/shotgun/SMG definitions, persistent ammo,
+tick cooldown/reload, global range, simulation static LoS, deterministic damage,
+player terminal Health and persistent NPC death are implemented. SaveFormatVersion
+is 12, CombatStateVersion 1 and StateHash is v14. An authentic v11 fixture is
+frozen and migration-tested. No witness, police, wanted or vehicle combat exists.
+Fresh final Release: 34/34 CTest PASS in 153.80 s. Combat stress: 100 worlds,
+2700 attacks, 300 deaths and zero save/continuation/hash mismatches. Historical
+BaseWorldHash v1/v2/v3 remains unchanged. See `docs/PHASE19_VERIFICATION.md`.

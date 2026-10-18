@@ -1,5 +1,5 @@
 #pragma once
-#include "persistence/schema_v11.hpp"
+#include "persistence/schema_v12.hpp"
 #include <map>
 
 namespace faultline::test {

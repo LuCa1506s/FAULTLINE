@@ -9,6 +9,7 @@
 #include "simulation/missions/mission_system.hpp"
 #include "simulation/prologue/prologue_system.hpp"
 #include "simulation/player/player_system.hpp"
+#include "simulation/combat/combat_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <algorithm>
 #include <cmath>
@@ -44,6 +45,7 @@ GameState::GameState(WorldSeed seed, world::WorldGenerationConfig config, Genera
     simulation::initializeMissionSimulation(*this);
     simulation::initializePrologueState(*this);
     simulation::initializePlayerState(*this);
+    simulation::initializeCombatSimulation(*this);
 }
 GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored)
     : metadata(meta), clock(time), randomness(std::move(random)), world(std::move(restored)) {
@@ -54,6 +56,7 @@ GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRand
     simulation::initializeMissionSimulation(*this);
     simulation::initializePrologueState(*this);
     simulation::initializePlayerState(*this);
+    simulation::initializeCombatSimulation(*this);
 }
 void validateState(const GameState& state) {
     world::validateWorld(state.world);
@@ -66,6 +69,7 @@ void validateState(const GameState& state) {
     simulation::validateMissionSimulation(state);
     simulation::validatePrologueState(state);
     simulation::validatePlayerState(state);
+    simulation::validateCombatSimulation(state);
     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
@@ -85,7 +89,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v13"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v14"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)
@@ -100,6 +104,7 @@ std::uint64_t stateHash(const GameState& state) {
     simulation::appendMissionSimulationHash(hash,state);
     simulation::appendPrologueStateHash(hash,state);
     simulation::appendPlayerStateHash(hash,state);
+    simulation::appendCombatSimulationHash(hash,state);
     return hash.value();
 }
 void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
@@ -167,6 +172,21 @@ void Simulation::tick(GameState& state, const TickInput& input) {
     // Streaming has established the bounded physical residency set. Character AI
     // now executes local intent before the completed-tick clock boundary.
     simulation::updateCharacterAi(state, characterAiEvents_);
+    const auto npcEventsBeforeCombat=npcEvents_.values().size();
+    simulation::updateCombat(state,input.player,characterAiEvents_,combatEvents_,npcEvents_);
+    // Physical combat consequences are observed after resolution. Downstream
+    // systems consume facts; Combat never edits missions or StoryGraph directly.
+    bool combatDeathObserved=false;
+    for (std::size_t i=npcEventsBeforeCombat;i<npcEvents_.values().size();++i) {
+        const auto& ev=npcEvents_.values()[i];
+        if (ev.kind==simulation::NpcEventKind::Died) {
+            combatDeathObserved=true; simulation::onNpcDied(state,ev.npc,missionEvents_);
+        }
+    }
+    if (combatDeathObserved) {
+        simulation::updateMissions(state,missionEvents_);
+        if (state.story.version) simulation::repairStoryGraph(state);
+    }
     playerIntents_.clear();
     if (input.player.interactPressed && state.player.controlledEntity)
         playerIntents_.push({state.player.controlledEntity,state.world.transforms.get(state.player.controlledEntity).position,
@@ -198,6 +218,6 @@ void Game::requestValidation(std::uint64_t targetTick, CommandSource source) {
 }
 void Game::tick() {
     simulation_.tick(state_, {state_.clock.tick(), input_, commands_.take(state_.clock.tick())});
-    input_.shootPressed = false; input_.interactPressed = false; input_.enterVehiclePressed = false;
+    input_.shootPressed = false; input_.interactPressed = false; input_.enterVehiclePressed = false; input_.reloadPressed=false;
 }
 }

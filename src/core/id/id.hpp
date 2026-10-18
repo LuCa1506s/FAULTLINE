@@ -18,6 +18,8 @@ private:
     std::uint64_t value_{};
 };
 using OperationId = Id<OperationTag>;
+struct WeaponDefinitionTag; using WeaponDefinitionId = Id<WeaponDefinitionTag>;
+struct WeaponInstanceTag; using WeaponInstanceId = Id<WeaponInstanceTag>;
 struct StoryNodeTag; using StoryNodeId = Id<StoryNodeTag>;
 struct EntityTag; using EntityId = Id<EntityTag>;
 struct NpcTag; using NpcId = Id<NpcTag>;

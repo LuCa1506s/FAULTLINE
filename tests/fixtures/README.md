@@ -147,6 +147,16 @@ It was NOT used as a historical fixture or silently renamed/converted. Its bytes
 remain untouched as inherited recovery evidence, with another copy under build/.
 External stale worktrees were inspected but not modified, pruned or deleted.
 
+## Phase 18 v11 fixture
+
+`save_v11_phase18.flsave` was emitted before any Phase 19 source edit from clean
+commit `76d0b26` by the actual Phase 18 Release writer:
+`build-release/faultline_characters.exe --seed 12345 --ticks 1200 --save tests/fixtures/save_v11_phase18.flsave`.
+Phase 18 savecheck reported v11, generator 3, seed 12345, tick 1200, StateHash
+`65888fedbbdc1dc1`, Validation PASS. Size **970887 bytes**. SHA-256
+`2ec6b2353547c8e15b84da24f149659fb2be3eb7d2ad5050ca8abbbfc2fc3019`.
+No header or payload bytes were patched.
+
 ## Authentic completed-history v7 fixture
 
 `save_v7_completed_history.flsave` replaces the former synthetic test method that

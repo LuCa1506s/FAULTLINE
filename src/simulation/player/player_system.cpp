@@ -53,6 +53,7 @@ EntityId createPlayerEntity(GameState& state, WorldPosition spawnPosition) {
 void updatePlayerMovement(GameState& state, const PlayerInputFrame& input, WorldStreamingSystem& streaming) {
     const auto entity = state.player.controlledEntity;
     if (!entity || !state.world.entities.exists(entity)) return;
+    if (state.world.health.get(entity).current<=0) return;
     auto& transform = state.world.transforms.get(entity);
     auto& body = state.world.characterBodies.get(entity);
     if (std::isfinite(input.aimX) && std::isfinite(input.aimZ) &&
@@ -92,7 +93,7 @@ void validatePlayerState(const GameState& state) {
                       "Player cannot also represent an NPC or vehicle");
         core::require(state.player.yaw==w.characterBodies.get(state.player.controlledEntity).yaw,"Player facing cache/body mismatch");
         const auto& hp = w.health.get(state.player.controlledEntity);
-        core::require(std::isfinite(hp.current) && hp.current > 0 && hp.maximum >= hp.current, "Player health invalid");
+        core::require(std::isfinite(hp.current) && hp.current >= 0 && hp.maximum >= hp.current, "Player health invalid");
         core::require(std::isfinite(state.player.yaw) && state.player.yaw >= -3.14159265F && state.player.yaw <= 3.14159265F, "Player yaw out of range");
         core::require(normalize(state.player.spawnPosition, w.spatial.cellSize()) == state.player.spawnPosition, "Player spawn position not normalized");
     } else {
