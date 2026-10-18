@@ -243,3 +243,30 @@ Pistol, shotgun and SMG definitions are immutable; instances persist ammo and
 tick-based cooldown/reload state. SaveFormatVersion 12 and StateHash v14 add this
 runtime state. Run `faultline_combat --seed 12345 --rounds 6` for a headless
 deterministic scenario. See [COMBAT.md](docs/COMBAT.md).
+
+### 2D debug map viewer
+
+`faultline_map2d` is a **non-authoritative** SVG visualization tool for inspecting
+generated worlds and saved state as 2D top-down maps. It does not advance simulation,
+consume RNG, modify GameState, or change any persistent schema or hashes.
+
+```
+build/faultline_map2d.exe --seed 12345 --output build/seed12345.svg
+build/faultline_map2d.exe --seed 12345 --runtime --output build/runtime12345.svg --labels
+build/faultline_map2d.exe --load build/player.flsave --output build/save.svg
+build/faultline_map2d.exe --seed 12345 --output build/seed12345.svg --diagnostics
+```
+
+Optional flags: `--no-buildings`, `--no-parcels`, `--no-territories`, `--no-npcs`,
+`--runtime` (seed mode), `--labels`, `--width PX`, `--diagnostics`.
+
+Raw seed mode contains no player or physical NPCs. Runtime seed mode uses canonical
+player creation and streaming residency without advancing a tick. The current data
+model has faction home territories but no authoritative HQ point, so the viewer does
+not fabricate HQ markers.
+
+The `--diagnostics` flag prints a structured spatial bounds report to stdout,
+including world/road/district/parcel/building/territory/water extents, coverage
+percentages, and the SVG view transform. The generated SVG remains byte-identical
+whether or not `--diagnostics` is supplied. See
+[MAP2D_DEBUG_VIEWER.md](docs/MAP2D_DEBUG_VIEWER.md).

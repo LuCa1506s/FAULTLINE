@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 17 - Player Physical Controller completed and verified.
-Stop after Phase 17; do not begin Phase 18.
+Current phase: Phase 19 completed and verified; independent map2d viewer audit complete.
+Stop before Phase 20.
 
 Completed:
 
@@ -542,3 +542,14 @@ frozen and migration-tested. No witness, police, wanted or vehicle combat exists
 Fresh final Release: 34/34 CTest PASS in 153.80 s. Combat stress: 100 worlds,
 2700 attacks, 300 deaths and zero save/continuation/hash mismatches. Historical
 BaseWorldHash v1/v2/v3 remains unchanged. See `docs/PHASE19_VERIFICATION.md`.
+
+## Non-canonical 2D debug viewer audit
+
+The read-only SVG tool has explicit raw generated-world, runtime-initialized and
+loaded-save modes. Runtime mode uses canonical player creation and streaming; save
+mode reconstructs transient residency leases without advancing a tick or changing
+StateHash. Runtime territory control, current semantic NPC state and CharacterBody
+facing are rendered. The model has faction home territories but no HQ point, so the
+viewer fabricates no HQ marker. Actual emitted SVG counts and byte determinism are
+covered by the map2d process gate. Persistence, StateHash, GeneratorVersion and
+worldgen remain unchanged.

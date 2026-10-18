@@ -163,6 +163,8 @@ build/phase11-repair-*. No parent canonical source or worldgen algorithm changed
 * `tools/simulator/main.cpp`
 * `tools/worldgen/main.cpp`
 * `tools/savecheck/main.cpp`
+* `tools/map2d/main.cpp`
+* `tests/map2d_tests.cpp`
 * `tests/core_tests.cpp`
 * `tests/runtime_tests.cpp`
 * `tests/store_tests.cpp`
@@ -184,6 +186,7 @@ build/phase11-repair-*. No parent canonical source or worldgen algorithm changed
 * `tests/fixtures/README.md`
 * `tests/determinism/simulation_process.cmake`
 * `tests/determinism/worldgen_process.cmake`
+* `tests/determinism/map2d_process.cmake`
 * `tests/vendor/doctest.h`
 * `tests/vendor/LICENSE.txt`
 * `tests/vendor/README.md`
@@ -343,3 +346,20 @@ No save schema, StateHash schema, generator or canonical parent document changed
 - `tests/combat_tests.cpp` and `tests/determinism/combat_process.cmake` - focused and process tests.
 - `tests/fixtures/save_v11_phase18.flsave` - authentic pre-Phase19 fixture.
 - `docs/COMBAT.md`, `docs/SAVE_FORMAT_V12.md`, `docs/PHASE19_VERIFICATION.md`.
+
+## Non-canonical: 2D Debug Map Viewer (Phase 19 addendum)
+
+A non-authoritative visualization tool for inspecting generated worlds and saved state
+as 2D SVG maps. Does not extend simulation scope or phase content.
+
+- `tools/map2d/main.cpp` — SVG viewer with raw seed, runtime seed and load modes, authoritative runtime overlays, deterministic labels, legend and metadata,
+  general-form `SvgTransform` with arbitrary world bounds centering.
+- `tests/map2d_tests.cpp` — focused unit tests for deterministic formatting, XML escaping,
+  coordinate mapping, faction colors, world generation invariants, and arbitrary-bounds
+  SVG transform centering.
+- `tests/determinism/map2d_process.cmake` — actual emitted-SVG audit across raw/runtime/v12-save modes, layer counts and cross-process byte identity.
+- `docs/MAP2D_DEBUG_VIEWER.md` — full documentation of CLI, coordinate mapping, layers, and limitations.
+- `docs/MAP2D_AUDIT.md` — independent semantic/rendering audit and measured seed/runtime/save results.
+
+Modified: CMakeLists.txt — added `faultline_map2d` and `faultline_map2d_tests` targets.
+No save schema, StateHash schema, generator version, or canonical parent document changed.
