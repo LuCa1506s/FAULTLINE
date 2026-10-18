@@ -1,5 +1,6 @@
 #include "simulation/npc/npc_system.hpp"
 #include "simulation/factions/faction_system.hpp"
+#include "simulation/npc/character_ai.hpp"
 #include <algorithm>
 #include <sstream>
 
@@ -201,6 +202,9 @@ NpcId promoteNpc(GameState& state,EphemeralActor& actor,NpcEventBuffer& events) 
     }
     n.semantic={}; const auto id=candidate.world.npcs.create(n);
     if (entity) candidate.world.npcLinks.set(candidate.world.entities,entity,{id});
+    if (entity && !candidate.world.characterBodies.contains(entity))
+        candidate.world.characterBodies.set(candidate.world.entities, entity,
+            {0.0F, npcMovementSpeedMetersPerSec, npcStanceHeightMeters});
     initializeNpc(candidate,id); candidate.world.npcs.get(id).semantic.activity=priorActivity; increment(candidate.npcSimulation.statistics.promotions); validateState(candidate);
     state=std::move(candidate); actor.promotedTo=id;
     events.push({NpcEventKind::Promoted,id,{},{},state.clock.tick()}); return id;

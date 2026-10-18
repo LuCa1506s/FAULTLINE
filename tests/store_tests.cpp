@@ -32,6 +32,7 @@ TEST_CASE("duplicate materialization is detected and destruction removes links")
     const auto a = world.entities.create(), b = world.entities.create();
     world.npcs.get(npc).activeEntity = a; world.npcLinks.set(world.entities, a, {npc});
     world.transforms.set(world.entities, a, {}); world.health.set(world.entities, a, {});
+    world.characterBodies.set(world.entities, a, {});
     CHECK_NOTHROW(validateWorld(world));
     world.npcLinks.set(world.entities, b, {npc}); CHECK_THROWS(validateWorld(world));
     world.npcLinks.remove(b); destroyEntity(world, a);

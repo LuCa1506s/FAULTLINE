@@ -506,3 +506,28 @@ Limits: ground-plane static collision only; no interiors/doors/vertical physics,
 NPC physical navigation, Character AI, combat, renderer or target interaction
 execution. Linear static-footprint scan is adequate for this milestone.
 No Phase 18 implementation; canonical parent documents unchanged.
+
+## Phase 18 / Basic Character AI
+
+Implemented active-only deterministic physical AI for persistent NPC bodies.
+Transient intents provide idle, move-to, locally perceived follow, flee-to-home,
+attack approach and protect-location execution. Attack intent performs no combat.
+NpcId remains the semantic identity; streaming owns residency and EntityId bodies.
+Materialization/restoration now attach CharacterBody, abstraction synchronizes
+position/health, and ordered residency bounds all 20 Hz AI work.
+
+NPC speed is 3.5 m/s using the fixed 50 ms physical tick (0.175 m/tick). Facing is
+owned by CharacterBody and reconstructed deterministically. NPC and player use the
+same swept static collision/sliding and WorldPosition normalization. No persistent
+AI state was required: SaveFormatVersion remains 11 and StateHash remains v13.
+
+Focused verification: 11 doctest cases / 561769 assertions pass. Two independent
+processes produce identical output/save bytes. Seed 12345 x 1200 ticks and seeds
+1..10 x 1000 ticks pass with real movement, abstraction/rematerialization and zero
+link/body/save/continuation/hash mismatches. Full canonical Release results are in
+docs/PHASE18_VERIFICATION.md and the session report. No known blocker. STOP before
+Phase 19; no combat, police or vehicle AI is implemented.
+
+Fresh canonical Release gate: exit 0, 31/31 CTest PASS in 114.08 s (155.634 s
+including configure/build), 259 doctest cases / 1,113,191 assertions PASS. Fast
+regression: 20/20 in 8.05 s. Historical BaseWorldHash v1/v2/v3 unchanged.

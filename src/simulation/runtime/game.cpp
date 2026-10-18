@@ -1,6 +1,7 @@
 #include "simulation/runtime/game.hpp"
 #include "simulation/factions/faction_system.hpp"
 #include "simulation/npc/npc_system.hpp"
+#include "simulation/npc/character_ai.hpp"
 #include "simulation/territory/territory_system.hpp"
 #include "simulation/market/market_system.hpp"
 #include "simulation/history/history_system.hpp"
@@ -163,6 +164,9 @@ void Simulation::tick(GameState& state, const TickInput& input) {
         !territoryEvents_.empty() || previousMarketUpdate!=state.marketSimulation.updates)) simulation::repairStoryGraph(state);
     context.structuralChanges.commit([&state](const auto& command) { world::applyStructuralCommand(state.world, command); });
     simulation::updatePlayerMovement(state, input.player, streaming_);
+    // Streaming has established the bounded physical residency set. Character AI
+    // now executes local intent before the completed-tick clock boundary.
+    simulation::updateCharacterAi(state, characterAiEvents_);
     playerIntents_.clear();
     if (input.player.interactPressed && state.player.controlledEntity)
         playerIntents_.push({state.player.controlledEntity,state.world.transforms.get(state.player.controlledEntity).position,

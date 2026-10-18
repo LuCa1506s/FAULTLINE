@@ -3,6 +3,7 @@
 #include "core/events/ordered_buffer.hpp"
 #include "world/spatial/streaming.hpp"
 #include "simulation/runtime/game_state.hpp"
+#include "simulation/npc/character_ai.hpp"
 #include <vector>
 #include <functional>
 
@@ -53,8 +54,10 @@ public:
     [[nodiscard]] const simulation::NpcEventBuffer& npcEvents() const { return npcEvents_; }
     [[nodiscard]] const simulation::MissionEventBuffer& missionEvents() const { return missionEvents_; }
     [[nodiscard]] const PlayerIntentBuffer& playerIntents() const { return playerIntents_; }
+    [[nodiscard]] const simulation::CharacterAiEventBuffer& characterAiEvents() const { return characterAiEvents_; }
 private:
     PlayerIntentBuffer playerIntents_;
+    simulation::CharacterAiEventBuffer characterAiEvents_;
     simulation::NpcEventBuffer npcEvents_;
     simulation::TerritoryEventBuffer territoryEvents_;
     DomainEventBuffer events_;

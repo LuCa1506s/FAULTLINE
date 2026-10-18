@@ -1,6 +1,7 @@
 #include "simulation/player/player_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include "world/spatial/character_movement.hpp"
+#include "simulation/npc/character_ai.hpp"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -28,6 +29,8 @@ void restorePlayerResidency(GameState& state) {
         w.entities=EntityRegistry::restore(w.entities.nextId(),std::move(live));
         w.transforms.set(w.entities,r.entity,{n.position});
         w.health.set(w.entities,r.entity,n.health);
+        w.characterBodies.set(w.entities,r.entity,
+            {0.0F, npcMovementSpeedMetersPerSec, npcStanceHeightMeters});
         w.npcLinks.set(w.entities,r.entity,{r.npc});
         w.spatial.upsert(r.entity,n.position); n.activeEntity=r.entity;
     }

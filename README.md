@@ -220,3 +220,17 @@ See [PLAYER_CONTROLLER.md](docs/PLAYER_CONTROLLER.md),
 [SAVE_FORMAT_V11.md](docs/SAVE_FORMAT_V11.md), and the measured
 [Phase 17 verification](docs/PHASE17_VERIFICATION.md). Character AI/combat/rendering
 are not included; stop before Phase 18.
+
+Phase 18 adds active-only physical NPC movement driven by semantic activity and
+faction assignments. It reuses the player collision controller, preserves NpcId
+through abstraction, and keeps transient EntityId residency deterministic:
+
+```powershell
+build-release/faultline_characters.exe --seed 12345 --ticks 1200 --save build-release/character.flsave
+build-release/faultline_characters.exe --range 1 10 --ticks 1000
+ctest --test-dir build-release -L character_ai --output-on-failure
+```
+
+See [CHARACTER_AI.md](docs/CHARACTER_AI.md) and
+[PHASE18_VERIFICATION.md](docs/PHASE18_VERIFICATION.md). Attack intent is approach
+movement only; combat, police and vehicle AI remain outside Phase 18.

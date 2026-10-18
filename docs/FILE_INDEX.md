@@ -315,3 +315,21 @@ history/story/market/NPC/territory/persistence tests; fixtures README; README;
 DEVELOPMENT_STATUS; DETERMINISM. Inherited Phase 16 prologue/schema/tool/tests/docs
 remain present and uncommitted; prologue creates no physical entity. The inherited
 `.flsave.tmp` remains unused and unchanged, not a historical fixture.
+
+## Phase 18 / Basic Character AI
+
+- `src/simulation/npc/character_ai.hpp/.cpp` - transient local intent, perception,
+  stable active-set decision order and shared physical movement execution.
+- `tools/characters/main.cpp` - real headless AI movement, residency transition,
+  save/continuation and multi-seed diagnostics.
+- `tests/character_ai_tests.cpp` - focused physical AI, streaming, collision,
+  persistence, signed crossing and long deterministic execution tests.
+- `tests/determinism/character_ai_process.cmake` - independent process stdout and
+  canonical save SHA-256 comparison.
+- `docs/CHARACTER_AI.md` - authority, intent, movement, streaming and scope.
+- `docs/PHASE18_VERIFICATION.md` - commands and measured gates.
+
+Modified: CMakeLists.txt; runtime game tick/event access; NPC promotion;
+player residency reconstruction; streaming materialization; world validation;
+the player diagnostic body count; DEVELOPMENT_STATUS, README and DETERMINISM.
+No save schema, StateHash schema, generator or canonical parent document changed.

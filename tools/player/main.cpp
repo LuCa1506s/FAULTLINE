@@ -58,7 +58,9 @@ int main(int argc,char** argv) {
             core::require(stateHash(a)==stateHash(b) && persistence::saveGameState(a)==persistence::saveGameState(b),"Final save/hash mismatch");
             const auto pos=a.world.transforms.get(entity).position;
             core::require(world::normalize(pos,a.world.spatial.cellSize())==pos,"Invalid position");
-            core::require(a.world.characterBodies.entries().size()==1,"Duplicate/lost player body");
+            core::require(a.world.characterBodies.contains(entity) &&
+                a.world.characterBodies.entries().size()==1+a.player.residents.size(),
+                "Duplicate/lost physical character body");
             if (first==last) {
                 const auto& body=a.world.characterBodies.get(entity);
                 std::cout<<"Seed: "<<seed<<"\nEntity: "<<entity.value()<<"\nCell: "<<pos.cell.x<<','<<pos.cell.z

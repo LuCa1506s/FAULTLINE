@@ -273,3 +273,19 @@ preserves hysteresis and semantic NPC scheduling across save/load, not just the
 immediate snapshot. Real movement process tests compare stdout and canonical save
 SHA-256; per-tick continuation tests compare IDs, allocator and RNG as well as
 StateHash. See PLAYER_CONTROLLER.md and PHASE17_VERIFICATION.md. No Phase 18 AI.
+
+## Phase 18 / physical NPC Character AI
+
+Physical NPC intent is reconstructed every tick from persistent NpcState, current
+faction operations, valid semantic locations and local spatial perception. It
+consumes no RNG. Streaming first establishes the ordered `(NpcId, EntityId)` ACTIVE
+lease set; Character AI processes that set in ascending NpcId order after player/
+streaming commit. Fixed displacement uses exactly 50 ms and shared deterministic
+static collision. No wall clock, renderer time, unordered iteration or path-search
+budget influences the result.
+
+NPC bodies remain transient. Snapshot/abstraction synchronizes Transform and Health
+into NpcState, while facing is deterministically reconstructed from intent (zero for
+idle). SaveFormatVersion 11 and StateHash `FAULTLINE.state.v13` remain sufficient.
+Focused continuation compares hash, allocator, residency, Transform and CharacterBody
+after every tick; independent processes compare full output and save SHA-256.

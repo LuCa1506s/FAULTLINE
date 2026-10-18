@@ -25,6 +25,8 @@ EntityId materializeNpc(WorldState& world, NpcId id) {
     const auto entity = world.entities.create();
     world.transforms.set(world.entities, entity, {position});
     world.health.set(world.entities, entity, npc.health);
+    world.characterBodies.set(world.entities, entity,
+        {0.0F, defaultNpcMovementSpeedMetersPerSec, defaultNpcStanceHeightMeters});
     world.npcLinks.set(world.entities, entity, {id});
     world.spatial.upsert(entity, position); npc.activeEntity = entity;
     return entity;

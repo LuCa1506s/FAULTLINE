@@ -92,6 +92,8 @@ void validateWorld(const WorldState& world) {
             core::require(world.entities.exists(npc.activeEntity), "NPC entity missing");
             core::require(world.transforms.contains(npc.activeEntity) && world.health.contains(npc.activeEntity),
                           "NPC physical components missing");
+            core::require(world.characterBodies.contains(npc.activeEntity),
+                          "NPC physical character body missing");
             core::require(world.npcLinks.contains(npc.activeEntity) &&
                 world.npcLinks.get(npc.activeEntity).npc == id, "NPC back-link mismatch");
         }

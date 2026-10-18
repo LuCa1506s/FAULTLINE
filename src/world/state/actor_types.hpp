@@ -53,6 +53,8 @@ struct CharacterBody {
     float stanceHeight{1.75F};
     auto operator<=>(const CharacterBody&) const = default;
 };
+inline constexpr float defaultNpcMovementSpeedMetersPerSec = 3.5F;
+inline constexpr float defaultNpcStanceHeightMeters = 1.75F;
 enum class NpcActivity : std::uint8_t { Idle, Working, Travelling, Meeting, Hiding, FactionOperation, Arrested, Recovering };
 struct NpcTravelState {
     WorldLocation origin, destination;
