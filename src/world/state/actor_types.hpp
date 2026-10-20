@@ -16,7 +16,10 @@ inline constexpr std::size_t mainFactionCount = 5;
 inline constexpr std::array<const char*,4> familyNames{
     "African-American street gang", "Italian Mafia", "Asian criminal organization / Yakuza-like", "Cartel"};
 enum class AuthorityTier : std::uint8_t { Outsider, Associate, Member, Senior, Command, Leader };
-enum class NpcRole : std::uint16_t { FactionMember=1, FactionLeader=2, Dealer=4, MissionIssuer=8 };
+enum class NpcRole : std::uint16_t {
+    FactionMember=1, FactionLeader=2, Dealer=4, MissionIssuer=8,
+    PoliceOfficer=16, Witness=32
+};
 struct NpcRoles {
     std::uint16_t bits{};
     void add(NpcRole role) { bits |= static_cast<std::uint16_t>(role); }

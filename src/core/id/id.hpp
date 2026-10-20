@@ -20,6 +20,8 @@ private:
 using OperationId = Id<OperationTag>;
 struct WeaponDefinitionTag; using WeaponDefinitionId = Id<WeaponDefinitionTag>;
 struct WeaponInstanceTag; using WeaponInstanceId = Id<WeaponInstanceTag>;
+struct CrimeEventTag; using CrimeEventId = Id<CrimeEventTag>;
+struct CrimeReportTag; using CrimeReportId = Id<CrimeReportTag>;
 struct StoryNodeTag; using StoryNodeId = Id<StoryNodeTag>;
 struct EntityTag; using EntityId = Id<EntityTag>;
 struct NpcTag; using NpcId = Id<NpcTag>;

@@ -10,6 +10,7 @@
 #include "simulation/prologue/prologue_system.hpp"
 #include "simulation/player/player_system.hpp"
 #include "simulation/combat/combat_system.hpp"
+#include "simulation/police/police_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <algorithm>
 #include <cmath>
@@ -46,6 +47,7 @@ GameState::GameState(WorldSeed seed, world::WorldGenerationConfig config, Genera
     simulation::initializePrologueState(*this);
     simulation::initializePlayerState(*this);
     simulation::initializeCombatSimulation(*this);
+    simulation::initializePoliceSimulation(*this);
 }
 GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored)
     : metadata(meta), clock(time), randomness(std::move(random)), world(std::move(restored)) {
@@ -57,6 +59,7 @@ GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRand
     simulation::initializePrologueState(*this);
     simulation::initializePlayerState(*this);
     simulation::initializeCombatSimulation(*this);
+    simulation::initializePoliceSimulation(*this);
 }
 void validateState(const GameState& state) {
     world::validateWorld(state.world);
@@ -70,6 +73,7 @@ void validateState(const GameState& state) {
     simulation::validatePrologueState(state);
     simulation::validatePlayerState(state);
     simulation::validateCombatSimulation(state);
+    simulation::validatePoliceSimulation(state);
     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
@@ -89,7 +93,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v14"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v15"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)
@@ -105,6 +109,7 @@ std::uint64_t stateHash(const GameState& state) {
     simulation::appendPrologueStateHash(hash,state);
     simulation::appendPlayerStateHash(hash,state);
     simulation::appendCombatSimulationHash(hash,state);
+    simulation::appendPoliceSimulationHash(hash,state);
     return hash.value();
 }
 void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
@@ -135,7 +140,7 @@ void Simulation::tick(GameState& state, const TickInput& input) {
     // Restore logical streaming residency before NPC rules inspect materialization.
     // Reusing an existing allocation lease must not consume another EntityId.
     simulation::restorePlayerResidency(state);
-    events_.clear(); structuralChanges_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear();
+    events_.clear(); structuralChanges_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear(); policeEvents_.clear();
     SimulationContext context{input.tick, events_, structuralChanges_, state.randomness};
     // Ingest diagnostic commands. Domain systems enter in the canonical pipeline order.
     for (const auto& command : input.commands) {
@@ -172,8 +177,21 @@ void Simulation::tick(GameState& state, const TickInput& input) {
     // Streaming has established the bounded physical residency set. Character AI
     // now executes local intent before the completed-tick clock boundary.
     simulation::updateCharacterAi(state, characterAiEvents_);
+    // Existing report deadlines and police knowledge act before this tick's combat.
+    // Response movement uses only persisted last-known facts or fresh officer LoS.
+    simulation::updateReportsAndWanted(state,policeEvents_);
+    simulation::updatePoliceResponse(state,characterAiEvents_,policeEvents_);
     const auto npcEventsBeforeCombat=npcEvents_.values().size();
-    simulation::updateCombat(state,input.player,characterAiEvents_,combatEvents_,npcEvents_);
+    if (!simulation::arrestPending(state)) {
+        simulation::updateCombat(state,input.player,characterAiEvents_,combatEvents_,npcEvents_);
+    } else {
+        combatEvents_.clear();
+    }
+    // Combat emits facts; crime/witness/report processing follows without recursive
+    // writes back into CombatSystem. A newly reported response acts next tick.
+    simulation::ingestCombatCrimes(state,combatEvents_,policeEvents_);
+    simulation::observeNewCrimes(state,policeEvents_);
+    simulation::updateReportsAndWanted(state,policeEvents_);
     // Physical combat consequences are observed after resolution. Downstream
     // systems consume facts; Combat never edits missions or StoryGraph directly.
     bool combatDeathObserved=false;
@@ -192,6 +210,7 @@ void Simulation::tick(GameState& state, const TickInput& input) {
         playerIntents_.push({state.player.controlledEntity,state.world.transforms.get(state.player.controlledEntity).position,
                             state.player.yaw,state.clock.tick()});
     state.clock.advance();
+    if (simulation::arrestPending(state)) simulation::resolvePlayerArrest(state);
 }
 void Simulation::advanceHeadless(GameState& state, std::uint64_t ticks,
     const std::function<void(const simulation::FactionOperationEvent&)>& observe) {
@@ -200,11 +219,12 @@ void Simulation::advanceHeadless(GameState& state, std::uint64_t ticks,
     core::require(ticks<=core::SimulationClock::maxTick-state.clock.tick(),"Headless duration overflow");
     const auto end=state.clock.tick()+ticks;
     while (state.clock.tick()<end) {
-        const auto due=std::min({simulation::nextFactionDueTick(state),simulation::nextNpcDueTick(state),state.marketSimulation.nextUpdateTick});
+        const auto due=std::min({simulation::nextFactionDueTick(state),simulation::nextNpcDueTick(state),
+            state.marketSimulation.nextUpdateTick,simulation::nextPoliceDueTick(state)});
         if (state.clock.tick()<due) {
             // Only idle fixed ticks are skipped. Every scheduled mutation still uses tick().
             state.clock=core::SimulationClock{std::min(end,due)};
-            events_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear();
+            events_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear(); policeEvents_.clear();
         }
         if (state.clock.tick()<end) {
             tick(state,{state.clock.tick(),{},{}});

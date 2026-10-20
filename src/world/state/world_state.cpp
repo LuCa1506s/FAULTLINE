@@ -82,7 +82,7 @@ void validateWorld(const WorldState& world) {
             const auto found=std::find_if(buildings.begin(),buildings.end(),[&](const auto& b){return b.id==npc.location.building;});
             core::require(found!=buildings.end() && found->district==npc.location.district,"NPC building missing/incoherent");
         }
-        core::require(npc.authority<=AuthorityTier::Leader && npc.respect<=100 && npc.loyalty<=10000 && (npc.roles.bits & ~15U)==0,"Invalid NPC authority/social state");
+        core::require(npc.authority<=AuthorityTier::Leader && npc.respect<=100 && npc.loyalty<=10000 && (npc.roles.bits & ~63U)==0,"Invalid NPC authority/social state");
         for (auto v : {npc.traits.aggression,npc.traits.ambition,npc.traits.riskTolerance,npc.traits.loyaltyBias,npc.traits.greed,npc.traits.courage,
             npc.capabilities.combat,npc.capabilities.driving,npc.capabilities.leadership,npc.capabilities.streetKnowledge,npc.capabilities.business})
             core::require(v<=10000,"Invalid NPC normalized state");

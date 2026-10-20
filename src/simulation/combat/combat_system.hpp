@@ -29,12 +29,15 @@ struct CombatEvent {
     std::uint16_t damage{};
     bool death{};
     std::uint64_t tick{};
+    world::WorldPosition attackerPosition{}, targetPosition{};
 };
 using CombatEventBuffer = core::OrderedBuffer<CombatEvent>;
 
 [[nodiscard]] const WeaponDefinition& weaponDefinition(WeaponDefinitionId id);
 [[nodiscard]] WeaponDefinitionId weaponDefinitionId(WeaponArchetype archetype);
 void initializeCombatSimulation(GameState& state);
+void addNpcCombatant(GameState& state, NpcId npc,
+                     WeaponArchetype archetype = WeaponArchetype::Pistol);
 void updateCombat(GameState& state, const PlayerInputFrame& input,
                   const CharacterAiEventBuffer& aiEvents, CombatEventBuffer& events,
                   NpcEventBuffer& npcEvents);

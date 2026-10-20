@@ -2,6 +2,7 @@
 #include "simulation/runtime/game.hpp"
 #include "simulation/npc/npc_system.hpp"
 #include "world/spatial/streaming.hpp"
+#include "world/spatial/character_movement.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -33,24 +34,6 @@ const world::Health* health(const GameState& state,CombatActorRef actor) {
         state.world.npcLinks.get(actor.entity).npc!=actor.npc) return nullptr;
     return &state.world.health.get(actor.entity);
 }
-bool segmentRect(world::DoubleVec3 a,world::DoubleVec3 b,world::Rect r) {
-    double lo=0,hi=1; const double dx=b.x-a.x,dz=b.z-a.z;
-    const auto clip=[&](double p,double q) {
-        if (std::abs(p)<1e-12) return q>=0;
-        const double t=q/p;
-        if (p<0) lo=std::max(lo,t); else hi=std::min(hi,t);
-        return lo<=hi;
-    };
-    return clip(-dx,a.x-static_cast<double>(r.x)) && clip(dx,static_cast<double>(world::right(r))-a.x) &&
-           clip(-dz,a.z-static_cast<double>(r.z)) && clip(dz,static_cast<double>(world::bottom(r))-a.z) && lo>1e-6 && lo<1.0-1e-6;
-}
-bool lineOfSight(const GameState& state,world::WorldPosition from,world::WorldPosition to) {
-    if (!state.world.base) return true;
-    const auto a=world::toGlobal(from,state.world.spatial.cellSize()),b=world::toGlobal(to,state.world.spatial.cellSize());
-    for (const auto& building:state.world.base->buildings) if (segmentRect(a,b,building.footprint)) return false;
-    for (const auto& water:state.world.base->water) if (segmentRect(a,b,water.boundary)) return false;
-    return true;
-}
 std::optional<CombatActorRef> playerTarget(const GameState& state,const PlayerInputFrame& input) {
     if (!state.player.controlledEntity || (input.aimX==0 && input.aimZ==0)) return std::nullopt;
     const auto origin=world::toGlobal(state.world.transforms.get(state.player.controlledEntity).position,state.world.spatial.cellSize());
@@ -67,7 +50,14 @@ std::optional<CombatActorRef> playerTarget(const GameState& state,const PlayerIn
     return best?std::optional{best->second}:std::nullopt;
 }
 std::optional<CombatActorRef> npcTarget(const GameState& state,NpcId attacker) {
-    const auto& source=state.world.npcs.get(attacker); if (!source.faction || !source.activeEntity) return std::nullopt;
+    const auto& source=state.world.npcs.get(attacker); if (!source.activeEntity) return std::nullopt;
+    if (source.roles.has(world::NpcRole::PoliceOfficer)) {
+        if (state.player.controlledEntity && state.world.entities.exists(state.player.controlledEntity) &&
+            state.world.health.get(state.player.controlledEntity).current>0)
+            return CombatActorRef{CombatActorKind::Player,state.player.controlledEntity,{}};
+        return std::nullopt;
+    }
+    if (!source.faction) return std::nullopt;
     const auto a=world::toGlobal(state.world.transforms.get(source.activeEntity).position,state.world.spatial.cellSize());
     std::optional<std::pair<std::pair<double,NpcId>,CombatActorRef>> best;
     for (const auto& [id,npc]:state.world.npcs.entries()) if (id!=attacker && npc.activeEntity && npc.faction && npc.faction!=source.faction && npc.lifecycle==world::NpcLifecycle::Alive) {
@@ -114,6 +104,15 @@ void initializeCombatSimulation(GameState& state) {
     }
 }
 
+void addNpcCombatant(GameState& state,NpcId npc,WeaponArchetype archetype) {
+    core::require(state.world.npcs.exists(npc) && !state.combat.npcs.contains(npc),
+                  "Invalid new NPC combatant");
+    const auto& d=weaponDefinition(weaponDefinitionId(archetype));
+    const auto weapon=state.combat.weapons.create(
+        {d.id,d.magazineCapacity,static_cast<std::uint16_t>(d.magazineCapacity*3)});
+    state.combat.npcs.emplace(npc,CombatantState{weapon});
+}
+
 void requestReload(GameState& state,CombatActorRef actor) {
     auto* c=combatant(state,actor); core::require(c,"Combatant has no loadout");
     auto& w=state.combat.weapons.get(c->equipped); const auto& d=weaponDefinition(w.definition);
@@ -123,7 +122,7 @@ void requestReload(GameState& state,CombatActorRef actor) {
 }
 
 CombatEvent resolveCombatIntent(GameState& state,const CombatIntent& intent,NpcEventBuffer& npcEvents) {
-    CombatEvent event{intent,CombatResult::InvalidAttacker,{},0,false,state.clock.tick()}; ++state.combat.statistics.attempts;
+    CombatEvent event{intent,CombatResult::InvalidAttacker,{},0,false,state.clock.tick(),{}, {}}; ++state.combat.statistics.attempts;
     auto* c=combatant(state,intent.attacker); const auto* attackerHealth=health(state,intent.attacker);
     if (!c || !attackerHealth || attackerHealth->current<=0) return event;
     event.weapon=c->equipped; auto& weapon=state.combat.weapons.get(c->equipped); const auto& def=weaponDefinition(weapon.definition);
@@ -136,9 +135,10 @@ CombatEvent resolveCombatIntent(GameState& state,const CombatIntent& intent,NpcE
     if (!weapon.ammoInMagazine) { requestReload(state,intent.attacker); event.result=CombatResult::EmptyMagazine; return event; }
     --weapon.ammoInMagazine; ++state.combat.statistics.shots; c->nextAttackTick=state.clock.tick()+def.cooldownTicks;
     const auto from=state.world.transforms.get(intent.attacker.entity).position,to=state.world.transforms.get(intent.target.entity).position;
+    event.attackerPosition=from; event.targetPosition=to;
     const auto a=world::toGlobal(from,state.world.spatial.cellSize()),b=world::toGlobal(to,state.world.spatial.cellSize());
     if (std::hypot(b.x-a.x,b.z-a.z)>def.rangeMeters) { event.result=CombatResult::MissOutOfRange; ++state.combat.statistics.misses; return event; }
-    if (!lineOfSight(state,from,to)) { event.result=CombatResult::MissBlocked; ++state.combat.statistics.misses; return event; }
+    if (!world::hasStaticLineOfSight(state.world,from,to)) { event.result=CombatResult::MissBlocked; ++state.combat.statistics.misses; return event; }
     event.result=CombatResult::Hit; event.damage=def.damage; ++state.combat.statistics.hits; ++state.combat.statistics.damageEvents;
     auto& hp=state.world.health.get(intent.target.entity); hp.current=std::max(0.0F,hp.current-static_cast<float>(def.damage));
     if (intent.target.kind==CombatActorKind::Npc) state.world.npcs.get(intent.target.npc).health=hp;
@@ -171,7 +171,8 @@ void updateCombat(GameState& state,const PlayerInputFrame& input,const Character
         if (input.shootPressed || (input.shootHeld && def.automatic)) if (auto target=playerTarget(state,input))
             intents.push_back({{CombatActorKind::Player,state.player.controlledEntity,{}},*target});
     }
-    for (const auto& e:aiEvents.values()) if (e.intent.behavior==CharacterAiBehavior::AttackIntent)
+    for (const auto& e:aiEvents.values()) if (e.intent.behavior==CharacterAiBehavior::AttackIntent ||
+        e.intent.behavior==CharacterAiBehavior::PolicePursuit)
         if (auto target=npcTarget(state,e.intent.npc)) intents.push_back({{CombatActorKind::Npc,e.intent.entity,e.intent.npc},*target});
     std::sort(intents.begin(),intents.end(),[](const auto& a,const auto& b){return std::pair{actorKey(a.attacker),actorKey(a.target)}<std::pair{actorKey(b.attacker),actorKey(b.target)};});
     for (const auto& intent:intents) events.push(resolveCombatIntent(state,intent,npcEvents));

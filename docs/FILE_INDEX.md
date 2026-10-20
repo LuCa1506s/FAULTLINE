@@ -363,3 +363,20 @@ as 2D SVG maps. Does not extend simulation scope or phase content.
 
 Modified: CMakeLists.txt — added `faultline_map2d` and `faultline_map2d_tests` targets.
 No save schema, StateHash schema, generator version, or canonical parent document changed.
+
+## Phase 20 / Witness + Police
+
+- `src/simulation/police/police_state.hpp` - CrimeEvent, reports, knowledge, eight-state Wanted context, responders, rules and statistics.
+- `src/simulation/police/police_system.hpp/.cpp` - crime ingestion, local witnesses, reports, knowledge/FSM, response, arrest, validation and hashing.
+- `src/persistence/schema_v13.hpp` - explicit PoliceState v1 wire fields.
+- `tools/police/main.cpp` - real headless scenario, checkpoint continuation and multi-seed stress diagnostics.
+- `tests/police_tests.cpp` - focused witness, FSM, response, arrest and persistence coverage.
+- `tests/determinism/police_process.cmake` - independent stdout and canonical-save comparison.
+- `tests/fixtures/save_v12_phase19.flsave` - authentic pre-v13 Phase 19 fixture.
+- `docs/WITNESS_POLICE.md`, `docs/SAVE_FORMAT_V13.md`, `docs/PHASE20_VERIFICATION.md`.
+
+Modified: CMakeLists; typed IDs and NPC roles; shared static LoS; Combat event facts
+and police loadouts; Character AI police intents; runtime GameState/tick order/event
+access/StateHash; persistence reader/writer/version; Map2D v12/v13 migration process
+gate; fixture provenance; README, DEVELOPMENT_STATUS and DETERMINISM. Map2D itself
+remains read-only and gained no Phase 20 overlay.

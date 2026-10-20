@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 19 completed and verified; independent map2d viewer audit complete.
-Stop before Phase 20.
+Current phase: Phase 20 Witness + Police completed and verified.
+Stop before Phase 21 Vehicles.
 
 Completed:
 
@@ -94,9 +94,9 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 17 completed and verified.
+In progress: none. Phase 20 completed and verified.
 
-Next: Phase 18 / Basic Character AI, only after Phase 17 review. Do not start automatically.
+Next: Phase 21 / Vehicles, only after Phase 20 review. Do not start automatically.
 
 Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
@@ -553,3 +553,22 @@ facing are rendered. The model has faction home territories but no HQ point, so 
 viewer fabricates no HQ marker. Actual emitted SVG counts and byte determinism are
 covered by the map2d process gate. Persistence, StateHash, GeneratorVersion and
 worldgen remain unchanged.
+
+## Phase 20 / Witness + Police
+
+Implemented typed replay-safe CrimeEvents, event-driven local witness perception,
+persistent NpcId observations/reports, explicit police knowledge and last-known
+information, all eight canonical high-level Wanted states, deterministic abstract/
+physical response, Character AI movement, CombatSystem force, district pressure,
+and 120-day arrest advancement. No hidden player Transform is consulted without
+valid active-officer LoS. SaveFormatVersion 13, StateHash v15 and PoliceStateVersion
+1 persist all future-affecting state; v1-v12 migrate neutrally without Police RNG.
+
+Focused verification is 19 cases / 1080 assertions; fast regression 26/26 PASS.
+Independent process/save bytes match and 100-seed real-system stress passes with no
+save, continuation, or hash mismatch. Final canonical Release is 39/39 CTest PASS
+in 171.39 seconds; aggregate doctest coverage is 326 cases / 1,143,209 assertions.
+See `docs/WITNESS_POLICE.md`,
+`docs/SAVE_FORMAT_V13.md`, and `docs/PHASE20_VERIFICATION.md`. GeneratorVersion 3
+and all historical BaseWorldHash fixtures remain unchanged. Phase 21 and vehicles
+were not started.

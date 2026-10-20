@@ -5,6 +5,7 @@
 #include "simulation/runtime/game_state.hpp"
 #include "simulation/npc/character_ai.hpp"
 #include "simulation/combat/combat_system.hpp"
+#include "simulation/police/police_system.hpp"
 #include <vector>
 #include <functional>
 
@@ -57,10 +58,12 @@ public:
     [[nodiscard]] const PlayerIntentBuffer& playerIntents() const { return playerIntents_; }
     [[nodiscard]] const simulation::CharacterAiEventBuffer& characterAiEvents() const { return characterAiEvents_; }
     [[nodiscard]] const simulation::CombatEventBuffer& combatEvents() const { return combatEvents_; }
+    [[nodiscard]] const simulation::PoliceEventBuffer& policeEvents() const { return policeEvents_; }
 private:
     PlayerIntentBuffer playerIntents_;
     simulation::CharacterAiEventBuffer characterAiEvents_;
     simulation::CombatEventBuffer combatEvents_;
+    simulation::PoliceEventBuffer policeEvents_;
     simulation::NpcEventBuffer npcEvents_;
     simulation::TerritoryEventBuffer territoryEvents_;
     DomainEventBuffer events_;

@@ -14,7 +14,9 @@ enum class CharacterAiBehavior : std::uint8_t {
     Follow,
     Flee,
     AttackIntent,
-    Protect
+    Protect,
+    PoliceSearch,
+    PolicePursuit
 };
 
 struct CharacterAiIntent {

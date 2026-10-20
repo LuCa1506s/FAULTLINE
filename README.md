@@ -1,5 +1,5 @@
-> Current checkpoint: **Phase 19 verified**, SaveFormatVersion 12 / StateHash v14.
-> Phase 20 has not started. Earlier phase sections below are historical checkpoints.
+> Current checkpoint: **Phase 20 verified**, SaveFormatVersion 13 / StateHash v15.
+> Phase 21 Vehicles has not started. Earlier phase sections below are historical checkpoints.
 
 # FAULTLINE
 
@@ -243,6 +243,26 @@ Pistol, shotgun and SMG definitions are immutable; instances persist ammo and
 tick-based cooldown/reload state. SaveFormatVersion 12 and StateHash v14 add this
 runtime state. Run `faultline_combat --seed 12345 --rounds 6` for a headless
 deterministic scenario. See [COMBAT.md](docs/COMBAT.md).
+
+## Phase 20 / witness and police
+
+Authoritative Combat facts become typed CrimeEvents. Bounded local witnesses use
+simulation range and static geometry, delayed reports create explicit police
+knowledge, and the eight-state Wanted FSM drives search/pursuit from persisted
+last-known information. Police officers remain semantic NPCs with streaming-owned
+transient bodies; movement reuses Character AI and damage reuses CombatSystem.
+Arrest advances the world 120 game days instead of resetting it.
+
+```powershell
+build-release/faultline_police.exe --seed 12345 --ticks 240 --save build-release/police.flsave
+build-release/faultline_police.exe --range 1 100 --ticks 240
+ctest --test-dir build-release -L police --output-on-failure
+```
+
+See [WITNESS_POLICE.md](docs/WITNESS_POLICE.md),
+[SAVE_FORMAT_V13.md](docs/SAVE_FORMAT_V13.md), and
+[PHASE20_VERIFICATION.md](docs/PHASE20_VERIFICATION.md). Vehicles and Phase 21 are
+not implemented.
 
 ### 2D debug map viewer
 

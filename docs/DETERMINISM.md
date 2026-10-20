@@ -297,3 +297,19 @@ positions; static line of sight visits canonical generated arrays. The guarantee
 hit model consumes no RNG. Cooldown and reload deadlines use integer simulation
 ticks. Weapon instances, ammo and deadlines are persisted and hashed by
 `FAULTLINE.state.v14`; transient intent/event buffers are excluded.
+
+## Phase 20 / witness, police, and save v13
+
+Crime and report identities are monotonic typed IDs; Combat ingestion is deduplicated
+by stable tick/event index. Witness candidates come from a bounded SpatialGrid query
+and are evaluated in ascending NpcId order with cell-aware distance and deterministic
+static LoS. Report, FSM, response, and arrest deadlines use simulation ticks only.
+
+PoliceState v1 persists future-affecting crimes, observations, reports, knowledge,
+processed sources, Wanted/last-known/deadline state, responders, district pressure,
+and arrest state. `FAULTLINE.state.v15` hashes those fields in canonical order.
+Transient perception candidates, ordered event buffers, Character AI intents,
+renderer/Map2D data, and rebuilt spatial indexes are excluded. V1-v12 migration adds
+neutral PoliceState without consuming RNG. Separate-process tests compare actual
+Phase 20 stdout, StateHash, and canonical save SHA-256; per-tick checkpoint tests
+compare uninterrupted and restored branches.
