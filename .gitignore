@@ -1,0 +1,77 @@
+# FAULTLINE — local build products and developer-specific files
+# This file does not remove files already tracked by Git.
+
+# CMake / C++ build outputs (at any depth)
+build/
+build-*/
+cmake-build-*/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+CMakeUserPresets.json
+.ninja_deps
+.ninja_log
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.ilk
+*.idb
+*.exe
+*.dll
+*.so
+*.so.*
+*.dylib
+*.dmp
+*.core
+
+# IDEs / personal workspace settings
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# Local runtime data, saves, and logs
+logs/
+*.log
+saves/
+savegames/
+crashdumps/
+*.tmp
+*.temp
+*.bak
+
+# Local secrets — review actual files before staging
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.pfx
+*.p12
+credentials.json
+secrets.json
+secrets/
+private/
+
+# Python tooling / caches
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
