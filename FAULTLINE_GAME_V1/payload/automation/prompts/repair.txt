@@ -1,0 +1,26 @@
+You are repairing FAULTLINE Phase {phase}: {title} after independent review.
+
+Repository:
+{repo_root}
+
+Canonical specs directory (READ ONLY):
+{specs_root}
+
+Read AGENTS.md, the phase contract, current source/tests, and the prior phase verification report.
+Do not begin a future phase.
+
+Independent review:
+{review_json}
+
+Local gate evidence:
+{gate_summary}
+
+Fix ALL critical/high issues and every issue explicitly required for the Phase {phase} Definition of Done.
+Re-run the relevant build/tests/stress/determinism/persistence gates.
+Do not weaken tests merely to make them pass.
+Update docs/PHASE{phase}_VERIFICATION.md and DEVELOPMENT_STATUS.md with real results.
+
+If a review request conflicts with canon, do not implement the conflicting change:
+report status=blocked and identify the exact conflict.
+
+Return only the structured result required by the output schema.

@@ -1,0 +1,665 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -22,7 +22,7 @@
+     src/world/generation/relationship_generation.cpp src/world/generation/actor_hash.cpp src/world/generation/actor_validation.cpp)
+ target_link_libraries(faultline_world PUBLIC faultline_core)
+ faultline_warnings(faultline_world)
+-add_library(faultline_simulation src/simulation/runtime/game.cpp src/simulation/factions/faction_system.cpp src/simulation/npc/npc_system.cpp src/simulation/territory/territory_system.cpp src/simulation/market/market_system.cpp src/simulation/history/history_system.cpp src/simulation/story/story_system.cpp src/simulation/missions/mission_system.cpp)
++add_library(faultline_simulation src/simulation/runtime/game.cpp src/simulation/factions/faction_system.cpp src/simulation/npc/npc_system.cpp src/simulation/territory/territory_system.cpp src/simulation/market/market_system.cpp src/simulation/history/history_system.cpp src/simulation/story/story_system.cpp src/simulation/missions/mission_system.cpp src/simulation/prologue/prologue_system.cpp)
+ target_link_libraries(faultline_simulation PUBLIC faultline_world)
+ target_sources(faultline_simulation PRIVATE src/simulation/story/story_system.cpp)
+ faultline_warnings(faultline_simulation)
+@@ -137,3 +137,7 @@
+   set_tests_properties(worldgen_process_determinism PROPERTIES TIMEOUT 120 LABELS "fast;determinism")
+   set_tests_properties(worldgen_mass_1000 PROPERTIES TIMEOUT 900 LABELS "worldgen;mass;stress")
+ endif()
++
++add_executable(faultline_prologue tools/prologue/main.cpp)
++target_link_libraries(faultline_prologue PRIVATE faultline_persistence)
++faultline_warnings(faultline_prologue)
+--- a/src/persistence/save.cpp
++++ b/src/persistence/save.cpp
+@@ -1,9 +1,10 @@
+-#include "persistence/schema_v9.hpp"
++#include "persistence/schema_v10.hpp"
+ #include "simulation/factions/faction_system.hpp"
+ #include "simulation/npc/npc_system.hpp"
+ #include "simulation/territory/territory_system.hpp"
+ #include "simulation/market/market_system.hpp"
+ #include "simulation/missions/mission_system.hpp"
++#include "simulation/prologue/prologue_system.hpp"
+ #include "world/spatial/streaming.hpp"
+ #include <fstream>
+ #include <sstream>
+@@ -18,9 +19,9 @@
+ namespace {
+ using detail::Writer;
+ using detail::Reader;
+-enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation };
+-constexpr std::uint32_t legacySectionCount=10;
+-constexpr std::uint32_t sectionCount=17;
++    enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation, Prologue };
++    constexpr std::uint32_t legacySectionCount=10;
++    constexpr std::uint32_t sectionCount=18;
+ void header(Reader& r) {
+     r.need(saveMagic.size());
+     for (auto expected : saveMagic) {
+@@ -173,6 +174,7 @@
+         section(w,Section::MissionSimulation,[&](Writer& a){
+             const auto& s=state.missionSimulation; a(s.version,s.config,s.statistics); writeStore(a,s.instances);
+         });
++        section(w,Section::Prologue,[&](Writer& a){ a(state.prologue); });
+         return std::move(w.bytes);
+     } catch (const SaveError&) { throw; }
+     catch (const std::exception& e) {
+@@ -185,7 +187,7 @@
+     if (bytes.size()>maxSaveBytes) r.fail(SaveErrorCode::InvalidData,"Save resource limit");
+     try {
+         header(r); std::uint32_t count{}; r(count);
+-        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : r.header.saveFormatVersion.value==7 ? 15U : r.header.saveFormatVersion.value==8 ? 16U : sectionCount))
++        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : r.header.saveFormatVersion.value==7 ? 15U : r.header.saveFormatVersion.value==8 ? 16U : r.header.saveFormatVersion.value==9 ? 17U : r.header.saveFormatVersion.value==10 ? 18U : sectionCount))
+             r.fail(SaveErrorCode::InvalidData,"Incorrect section count");
+         world::WorldState world; RuntimeRandomState random{r.header.worldSeed}; core::SimulationClock clock;
+         section(r,Section::Runtime,"runtime",[&](Reader& a){
+@@ -205,7 +207,8 @@
+                 previous=id; live.insert(id);
+             }
+             world.entities=world::EntityRegistry::restore(next,std::move(live));
+-            readComponents(a,world,world.transforms); readComponents(a,world,world.health); readComponents(a,world,world.vehicleLinks);
++            readComponents(a,world,world.transforms); readComponents(a,world,world.health);
++            readComponents(a,world,world.vehicleLinks);
+         });
+         section(r,Section::Districts,"districts",[&](Reader& a){ readStore(a,world.districts); });
+         section(r,Section::Territories,"territories",[&](Reader& a){ readStore(a,world.territories); });
+@@ -305,6 +308,8 @@
+         if (r.header.saveFormatVersion.value>=9) section(r,Section::MissionSimulation,"mission simulation",[&](Reader& a){
+             a(missionSimulation.version,missionSimulation.config,missionSimulation.statistics); readStore(a,missionSimulation.instances);
+         });
++        simulation::PrologueState prologue;
++        if (r.header.saveFormatVersion.value>=10) section(r,Section::Prologue,"prologue",[&](Reader& a){ a(prologue); });
+         if (r.remaining()!=0) r.fail(SaveErrorCode::InvalidData,"Trailing save data");
+         r.section="semantic validation";
+         GameState state{{r.header.worldSeed,r.header.generatorVersion},clock,std::move(random),std::move(world)};
+@@ -333,6 +338,8 @@
+         state.story=std::move(story); // v1..v7: uninitialized, no fictional prologue or story outcomes.
+         if (r.header.saveFormatVersion.value>=9) state.missionSimulation=std::move(missionSimulation);
+         else simulation::initializeMissionSimulation(state);
++        if (r.header.saveFormatVersion.value>=10) state.prologue=std::move(prologue);
++        else simulation::initializePrologueState(state);
+         validateLoaded(state,r); return state;
+     } catch (const SaveError&) { throw; }
+     catch (const std::exception& e) { r.fail(SaveErrorCode::ValidationFailure,e.what()); }
+--- a/src/persistence/save.hpp
++++ b/src/persistence/save.hpp
+@@ -6,7 +6,7 @@
+ 
+ namespace faultline::persistence {
+ struct SaveFormatVersion { std::uint32_t value; auto operator<=>(const SaveFormatVersion&) const = default; };
+-inline constexpr SaveFormatVersion currentSaveFormatVersion{9};
++inline constexpr SaveFormatVersion currentSaveFormatVersion{10};
+ struct GameVersion {
+     std::uint32_t major{}, minor{1}, patch{};
+     auto operator<=>(const GameVersion&) const = default;
+--- /dev/null
++++ b/src/persistence/schema_v10.hpp
+@@ -0,0 +1,10 @@
++#pragma once
++#include "persistence/schema_v9.hpp"
++#include "simulation/prologue/prologue_state.hpp"
++
++namespace faultline::persistence::detail {
++template<class A, class T> requires std::is_same_v<std::remove_cv_t<T>, simulation::PrologueState>
++void fields(A& a, T& v) {
++    a(v.version, v.phase, v.firstDelivery, v.origin, v.giver, v.recipient, v.evidence);
++}
++}
+--- /dev/null
++++ b/src/simulation/prologue/prologue_state.hpp
+@@ -0,0 +1,29 @@
++#pragma once
++#include "simulation/history/history_state.hpp"
++#include "world/state/actor_types.hpp"
++#include <cstdint>
++
++namespace faultline::simulation {
++
++enum class ProloguePhase : std::uint8_t {
++    PreMission = 0,
++    MissionAvailable,
++    MissionActive,
++    DeliveryComplete,
++    Complete
++};
++
++inline constexpr std::uint32_t currentPrologueStateVersion = 1;
++
++struct PrologueState {
++    std::uint32_t version{currentPrologueStateVersion};
++    ProloguePhase phase{ProloguePhase::PreMission};
++    MissionId firstDelivery{};
++    FactionId origin{};
++    NpcId giver{};
++    NpcId recipient{};
++    PrologueEvidence evidence{};
++    auto operator<=>(const PrologueState&) const = default;
++};
++
++}
+--- /dev/null
++++ b/src/simulation/prologue/prologue_system.cpp
+@@ -0,0 +1,242 @@
++#include "simulation/prologue/prologue_system.hpp"
++#include "simulation/history/history_system.hpp"
++#include "simulation/story/story_system.hpp"
++#include "simulation/territory/territory_system.hpp"
++#include <algorithm>
++
++namespace faultline::simulation {
++
++void initializePrologueState(GameState& state) {
++    state.prologue = PrologueState{};
++}
++
++MissionId createFirstDeliveryMission(GameState& state, FactionId origin) {
++    core::require(state.world.factions.exists(origin), "Origin faction does not exist");
++    auto& faction = state.world.factions.get(origin);
++    core::require(faction.leader && state.world.npcs.exists(faction.leader), "Origin faction leader does not exist");
++
++    const auto& leader = state.world.npcs.get(faction.leader);
++    core::require(leader.faction == origin, "Mission giver faction mismatch");
++
++    NpcId recipient = NpcId{};
++    for (const auto& [id, npc] : state.world.npcs.entries()) {
++        if (npc.faction == origin && npc.major && id != faction.leader && npc.lifecycle == world::NpcLifecycle::Alive) {
++            recipient = id;
++            break;
++        }
++    }
++    core::require(static_cast<bool>(recipient), "No recipient NPC found for FIRST DELIVERY");
++
++    const auto& recipientNpc = state.world.npcs.get(recipient);
++    const auto& leaderNpc = state.world.npcs.get(faction.leader);
++
++    ObjectiveId objGoTo = ObjectiveId{1};
++    ObjectiveId objInteract = ObjectiveId{2};
++    ObjectiveId objDeliver = ObjectiveId{3};
++
++    MissionDefinition def;
++    def.templateId = "PRIMARY_001_FIRST_DELIVERY";
++    def.category = MissionCategory::Primary;
++    def.title = "First Delivery";
++    def.durationTicks = 0;
++    def.reward = MissionReward{};
++
++    ObjectiveCondition locReached{ConditionType::LocationReached};
++    ObjectiveCondition interaction{ConditionType::InteractionOccurred};
++    ObjectiveCondition delivered{ConditionType::ItemDelivered};
++
++    def.objectives = {
++        ObjectiveDefinition{
++            objGoTo, ObjectiveType::GoTo, "Travel to the pickup location",
++            faction.leader, origin, TerritoryId{}, DistrictId{},
++            leaderNpc.position, 0.0f, 0u, NpcId{},
++            ObjectiveCondition{},
++            locReached,
++            ObjectiveCondition{},
++            std::vector<ObjectiveTransition>{{ObjectiveTransition{TransitionTrigger::OnSuccess, TransitionAction::ActivateObjective, objInteract}}},
++            false
++        },
++        ObjectiveDefinition{
++            objInteract, ObjectiveType::Interact, "Meet with " + leaderNpc.identity.name,
++            faction.leader, origin, TerritoryId{}, DistrictId{},
++            leaderNpc.position, 0.0f, 0u, NpcId{},
++            ObjectiveCondition{},
++            interaction,
++            ObjectiveCondition{},
++            std::vector<ObjectiveTransition>{{ObjectiveTransition{TransitionTrigger::OnSuccess, TransitionAction::ActivateObjective, objDeliver}}},
++            false
++        },
++        ObjectiveDefinition{
++            objDeliver, ObjectiveType::Deliver, "Deliver the package to " + recipientNpc.identity.name,
++            recipient, recipientNpc.faction, TerritoryId{}, DistrictId{},
++            recipientNpc.position, 0.0f, fictionalProductToken, recipient,
++            ObjectiveCondition{},
++            delivered,
++            ObjectiveCondition{},
++            std::vector<ObjectiveTransition>{{ObjectiveTransition{TransitionTrigger::OnSuccess, TransitionAction::CompleteMission}}},
++            false
++        }
++    };
++    def.initialObjective = objGoTo;
++
++    validateMissionDefinition(def, state);
++
++    MissionIssuer issuer;
++    issuer.kind = IssuerKind::Npc;
++    issuer.npc = faction.leader;
++    issuer.faction = origin;
++
++    MissionContext ctx;
++    ctx.targetFaction = origin;
++    ctx.targetNpc = faction.leader;
++    ctx.recipientNpc = recipient;
++    ctx.payloadItemId = fictionalProductToken;
++
++    return createMission(state, def, ctx, StoryNodeId{}, issuer);
++}
++
++bool completeFirstDeliveryObjectives(GameState& state, MissionId missionId, MissionEventBuffer& events) {
++    if (!state.missionSimulation.instances.exists(missionId)) return false;
++    auto& instance = state.missionSimulation.instances.get(missionId);
++    if (instance.status != MissionState::Active) return false;
++
++    ObjectiveId objGoTo = ObjectiveId{1};
++    ObjectiveId objInteract = ObjectiveId{2};
++    ObjectiveId objDeliver = ObjectiveId{3};
++
++    notifyLocationReached(state, missionId, objGoTo, instance.context.targetNpc
++        ? state.world.npcs.get(instance.context.targetNpc).position : WorldPosition{}, events);
++    if (instance.status == MissionState::Completed || instance.status == MissionState::Failed) return true;
++
++    notifyInteractionOccurred(state, missionId, objInteract, instance.context.targetNpc, events);
++    if (instance.status == MissionState::Completed || instance.status == MissionState::Failed) return true;
++
++    if (instance.objectiveStates.at(objDeliver).state == ObjectiveState::Active) {
++        notifyDeliveryCompleted(state, missionId, objDeliver, instance.context.recipientNpc,
++                                instance.context.payloadItemId, events);
++    }
++
++    return instance.status == MissionState::Completed;
++}
++
++PrologueEvidence generatePrologueEvidence(GameState& state, FactionId origin, std::uint64_t deliveryTick) {
++    core::require(state.world.factions.exists(origin), "Origin faction does not exist");
++    const auto evidence = historyPrologueCandidate(state, origin);
++    PrologueEvidence result = evidence;
++    result.firstDeliveryCompleted = true;
++    result.deliveryTick = deliveryTick;
++    result.discoveryTick = deliveryTick;
++    return result;
++}
++
++void commitPrologueEvidence(GameState& state, const PrologueEvidence& evidence) {
++    state.prologue.phase = ProloguePhase::DeliveryComplete;
++    state.prologue.evidence = evidence;
++}
++
++void runPrologue(GameState& state, FactionId origin) {
++    core::require(!state.history.version, "Prologue requires no existing strategic history");
++    core::require(state.world.entities.entries().empty(), "Prologue requires no physical entities");
++    core::require(state.factionSimulation.operations.entries().empty(), "Prologue requires no active operations");
++    core::require(state.prologue.phase == ProloguePhase::PreMission, "Prologue already started");
++
++    state.prologue.origin = origin;
++    state.prologue.phase = ProloguePhase::MissionAvailable;
++
++    const auto missionId = createFirstDeliveryMission(state, origin);
++    state.prologue.firstDelivery = missionId;
++    state.prologue.giver = state.world.factions.get(origin).leader;
++    state.prologue.recipient = state.missionSimulation.instances.get(missionId).context.recipientNpc;
++
++    {
++        MissionEventBuffer events;
++        acceptMission(state, missionId, events);
++        activateMission(state, missionId, events);
++        state.prologue.phase = ProloguePhase::MissionActive;
++    }
++
++    {
++        MissionEventBuffer events;
++        completeFirstDeliveryObjectives(state, missionId, events);
++    }
++
++    core::require(state.missionSimulation.instances.exists(missionId), "FIRST DELIVERY mission missing");
++    auto& instance = state.missionSimulation.instances.get(missionId);
++    core::require(instance.status == MissionState::Completed, "FIRST DELIVERY did not complete");
++
++    state.prologue.phase = ProloguePhase::DeliveryComplete;
++    const auto deliveryTick = state.clock.tick();
++
++    const auto evidence = generatePrologueEvidence(state, origin, deliveryTick);
++    state.prologue.evidence = evidence;
++
++    beginStrategicHistory(state, evidence);
++
++    while (state.history.months < historyMonths) {
++        advanceStrategicHistory(state);
++    }
++
++    initializeStoryGraph(state);
++    state.prologue.phase = ProloguePhase::Complete;
++    validateState(state);
++}
++
++void validatePrologueState(const GameState& state) {
++    if (!state.prologue.version) {
++        core::require(state.prologue == PrologueState{}, "Unversioned prologue state must be default");
++        return;
++    }
++    core::require(state.prologue.version == currentPrologueStateVersion, "Unsupported prologue version");
++    core::require(static_cast<std::uint8_t>(state.prologue.phase) <= static_cast<std::uint8_t>(ProloguePhase::Complete),
++                  "Invalid prologue phase");
++    if (state.prologue.phase != ProloguePhase::PreMission) {
++        core::require(static_cast<bool>(state.prologue.origin), "Prologue phase>PreMission requires origin faction");
++        core::require(state.world.factions.exists(state.prologue.origin), "Prologue origin faction missing");
++    }
++    if (state.prologue.phase >= ProloguePhase::MissionAvailable) {
++        core::require(static_cast<bool>(state.prologue.firstDelivery), "Mission not created in prologue");
++        core::require(state.missionSimulation.instances.exists(state.prologue.firstDelivery),
++                      "Prologue mission instance missing");
++    }
++    if (state.prologue.phase >= ProloguePhase::MissionActive) {
++        const auto& instance = state.missionSimulation.instances.get(state.prologue.firstDelivery);
++        core::require(instance.templateId == "PRIMARY_001_FIRST_DELIVERY", "Prologue mission template mismatch");
++    }
++    if (state.prologue.phase >= ProloguePhase::DeliveryComplete && state.history.version != 0) {
++        core::require(state.prologue.evidence.firstDeliveryCompleted, "Prologue evidence not committed");
++        core::require(state.prologue.evidence.origin == state.history.prologue.origin, "History prologue evidence mismatch");
++        core::require(state.prologue.evidence.rival == state.history.prologue.rival, "History prologue rival mismatch");
++    }
++    if (state.prologue.phase == ProloguePhase::Complete) {
++        core::require(state.history.version != 0, "Prologue complete but history not started");
++        core::require(state.history.months == historyMonths, "Prologue complete but history incomplete");
++        core::require(state.story.version != 0, "Prologue complete but story graph not initialized");
++    }
++}
++
++void appendPrologueStateHash(core::StateHash& hash, const GameState& state) {
++    const auto& p = state.prologue;
++    hash.u64(p.version);
++    hash.u64(static_cast<std::uint64_t>(p.phase));
++    hash.u64(p.firstDelivery.value());
++    hash.u64(p.origin.value());
++    hash.u64(p.giver.value());
++    hash.u64(p.recipient.value());
++    const auto& e = p.evidence;
++    hash.u64(e.origin.value());
++    hash.u64(e.rival.value());
++    hash.u64(e.witness.value());
++    hash.u64(e.location.value());
++    hash.u64(static_cast<std::uint64_t>(e.incident));
++    hash.u64(e.deliveryTick);
++    hash.u64(e.discoveryTick);
++    hash.u64(e.firstDeliveryCompleted ? 1 : 0);
++}
++
++void repairPrologueState(GameState& state) {
++    if (state.prologue.phase == ProloguePhase::PreMission) {
++        state.prologue = PrologueState{};
++    }
++}
++
++}
+--- /dev/null
++++ b/src/simulation/prologue/prologue_system.hpp
+@@ -0,0 +1,28 @@
++#pragma once
++#include "simulation/prologue/prologue_state.hpp"
++#include "simulation/missions/mission_system.hpp"
++
++namespace faultline::simulation {
++
++inline constexpr std::uint32_t primaryFirstDeliveryTemplateId = 1;
++inline constexpr std::uint32_t fictionalProductToken = 1;
++
++void initializePrologueState(GameState& state);
++
++MissionId createFirstDeliveryMission(GameState& state, FactionId origin);
++
++bool completeFirstDeliveryObjectives(GameState& state, MissionId missionId, MissionEventBuffer& events);
++
++PrologueEvidence generatePrologueEvidence(GameState& state, FactionId origin, std::uint64_t deliveryTick);
++
++void commitPrologueEvidence(GameState& state, const PrologueEvidence& evidence);
++
++void runPrologue(GameState& state, FactionId origin = FactionId{1});
++
++void validatePrologueState(const GameState& state);
++
++void appendPrologueStateHash(core::StateHash& hash, const GameState& state);
++
++void repairPrologueState(GameState& state);
++
++}
+--- a/src/simulation/runtime/game.cpp
++++ b/src/simulation/runtime/game.cpp
+@@ -6,6 +6,7 @@
+ #include "simulation/history/history_system.hpp"
+ #include "simulation/story/story_system.hpp"
+ #include "simulation/missions/mission_system.hpp"
++#include "simulation/prologue/prologue_system.hpp"
+ #include <algorithm>
+ #include <cmath>
+ #include <limits>
+@@ -38,6 +39,7 @@
+     simulation::initializeTerritorySimulation(*this);
+     simulation::initializeMarketSimulation(*this);
+     simulation::initializeMissionSimulation(*this);
++    simulation::initializePrologueState(*this);
+ }
+ GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored)
+     : metadata(meta), clock(time), randomness(std::move(random)), world(std::move(restored)) {
+@@ -46,6 +48,7 @@
+     simulation::initializeTerritorySimulation(*this);
+     simulation::initializeMarketSimulation(*this);
+     simulation::initializeMissionSimulation(*this);
++    simulation::initializePrologueState(*this);
+ }
+ void validateState(const GameState& state) {
+     world::validateWorld(state.world);
+@@ -56,6 +59,7 @@
+     simulation::validateStrategicHistory(state);
+     simulation::validateStoryGraph(state);
+     simulation::validateMissionSimulation(state);
++    simulation::validatePrologueState(state);
+     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
+         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
+     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
+@@ -73,9 +77,9 @@
+     core::DeterministicRng{core::deriveSeed(seed.value, "runtime.police")},
+     core::DeterministicRng{core::deriveSeed(seed.value, "runtime.story")}} {}
+ 
+-std::uint64_t stateHash(const GameState& state) {
++    std::uint64_t stateHash(const GameState& state) {
+     core::StateHash hash;
+-    hash.string("FAULTLINE.state.v11"); hash.u64(state.metadata.seed.value);
++         hash.string("FAULTLINE.state.v12"); hash.u64(state.metadata.seed.value);
+     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
+     hash.u64(state.clock.gameTime().milliseconds);
+     for (const auto& stream : state.randomness.streams)
+@@ -88,6 +92,7 @@
+     simulation::appendStrategicHistoryHash(hash,state);
+     simulation::appendStoryGraphHash(hash,state);
+     simulation::appendMissionSimulationHash(hash,state);
++    simulation::appendPrologueStateHash(hash,state);
+     return hash.value();
+ }
+ void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
+@@ -105,6 +110,7 @@
+ }
+ void Simulation::tick(GameState& state, const TickInput& input) {
+     core::require(!state.history.version || state.history.months==simulation::historyMonths,"Finish strategic history before runtime simulation");
++    core::require(state.prologue.phase!=simulation::ProloguePhase::DeliveryComplete,"Commit prologue delivery before runtime simulation");
+     core::require(input.tick == state.clock.tick(), "Tick input mismatch");
+     core::require(state.clock.tick() < core::SimulationClock::maxTick, "Tick counter exhausted");
+     core::require(std::isfinite(input.player.moveX) && std::isfinite(input.player.moveZ) &&
+--- a/src/simulation/runtime/game_state.hpp
++++ b/src/simulation/runtime/game_state.hpp
+@@ -11,6 +11,7 @@
+ #include "simulation/history/history_state.hpp"
+ #include "simulation/story/story_state.hpp"
+ #include "simulation/missions/mission_state.hpp"
++#include "simulation/prologue/prologue_state.hpp"
+ 
+ namespace faultline {
+ enum class RandomDomain : std::size_t { Combat, Npc, Missions, Factions, Market, Police, Story, Count };
+@@ -31,6 +32,7 @@
+     simulation::StrategicHistory history;
+     simulation::StoryGraph story;
+     simulation::MissionSimulationState missionSimulation;
++    simulation::PrologueState prologue;
+     explicit GameState(WorldSeed seed, world::WorldGenerationConfig config = {}, GeneratorVersion version = currentGeneratorVersion);
+     // Assemble restored data without rerunning world generation or resetting RNG/allocators.
+     GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored);
+--- /dev/null
++++ b/tools/prologue/main.cpp
+@@ -0,0 +1,159 @@
++#include "simulation/prologue/prologue_system.hpp"
++#include "simulation/history/history_system.hpp"
++#include "simulation/story/story_system.hpp"
++#include "simulation/runtime/game.hpp"
++#include "simulation/territory/territory_system.hpp"
++#include "simulation/factions/faction_system.hpp"
++#include "persistence/save.hpp"
++#include <charconv>
++#include <iostream>
++using namespace faultline;
++using namespace faultline::simulation;
++
++namespace {
++std::uint64_t number(std::string_view s) {
++    std::uint64_t n{}; const auto [end, ec] = std::from_chars(s.data(), s.data() + s.size(), n);
++    if (ec != std::errc{} || end != s.data() + s.size()) throw std::invalid_argument("Invalid number");
++    return n;
++}
++}
++
++int main(int argc, char** argv) {
++    try {
++        std::uint64_t first = 12345, last = 12345, origin = 1;
++        bool replay = false, small = false, verbose = false;
++        std::string savePath, loadPath, inspectPath;
++        std::uint32_t inspectMonths = 48;
++
++        for (int i = 1; i < argc; ++i) {
++            const std::string_view arg = argv[i];
++            const auto value = [&]() -> std::string_view {
++                if (++i == argc) throw std::invalid_argument("Missing argument");
++                return argv[i];
++            };
++            if (arg == "--seed") first = last = number(value());
++            else if (arg == "--range") { first = number(value()); last = number(value()); }
++            else if (arg == "--origin") origin = number(value());
++            else if (arg == "--replay") replay = true;
++            else if (arg == "--small") small = true;
++            else if (arg == "--verbose") verbose = true;
++            else if (arg == "--save") savePath = std::string(value());
++            else if (arg == "--load") loadPath = std::string(value());
++            else if (arg == "--inspect") inspectPath = std::string(value());
++            else if (arg == "--months") inspectMonths = static_cast<std::uint32_t>(number(value()));
++            else throw std::invalid_argument("Unknown prologue option: " + std::string(arg));
++        }
++
++        core::require(first <= last && last - first < 10000, "Invalid seed range");
++        core::require(origin >= 1 && origin <= 5, "Origin must be 1..5");
++        core::require(loadPath.empty() || (first == last && savePath.empty()), "Load mode requires exactly one seed and no save");
++
++        std::uint64_t worlds = 0, totalDealers = 0, totalEvents = 0;
++        std::uint64_t maxMarket = 0, maxControl = 0;
++        core::StateHash batch;
++
++        for (auto seed = first;; ++seed) {
++            world::WorldGenerationConfig config;
++            if (small) { config.width = 512; config.depth = 512; config.waterPercent = 0; }
++
++            GameState state = loadPath.empty()
++                ? GameState{WorldSeed{seed}, config}
++                : persistence::loadGameStateFile(loadPath);
++
++            if (loadPath.empty()) {
++                runPrologue(state, FactionId{origin});
++            } else {
++                core::require(state.prologue.phase != ProloguePhase::PreMission,
++                              "Loaded save does not contain prologue progress");
++                if (state.prologue.phase == ProloguePhase::DeliveryComplete ||
++                    state.prologue.phase == ProloguePhase::MissionActive) {
++                    core::require(!state.history.version,
++                                  "Loaded prologue with history already started");
++                    const auto evidence = generatePrologueEvidence(
++                        state, state.prologue.origin, state.prologue.evidence.deliveryTick);
++                    commitPrologueEvidence(state, evidence);
++                    beginStrategicHistory(state, evidence);
++                }
++                while (state.history.months < inspectMonths) {
++                    advanceStrategicHistory(state);
++                }
++                if (state.history.months == historyMonths && !state.story.version) {
++                    initializeStoryGraph(state);
++                }
++                state.prologue.phase = ProloguePhase::Complete;
++
++            }
++
++            validateState(state);
++
++            if (state.history.months == historyMonths) {
++                validatePostTimeskipWorld(state);
++            }
++
++            if (verbose) {
++                std::cout << "Seed: " << state.metadata.seed.value
++                    << "\nFaction: " << origin
++                    << "\nPhase: " << static_cast<int>(state.prologue.phase)
++                    << "\nMission: " << (state.prologue.firstDelivery ? state.prologue.firstDelivery.value() : 0)
++                    << "\nHistory months: " << state.history.months
++                    << "\nBaseWorldHash: " << std::hex << world::baseWorldHash(*state.world.base)
++                    << "\nStateHash: " << stateHash(state) << std::dec
++                    << "\nIncident: " << static_cast<int>(state.prologue.evidence.incident)
++                    << "\nRival: " << (state.prologue.evidence.rival ? state.prologue.evidence.rival.value() : 0)
++                    << "\nDiscovery incident: " << static_cast<int>(state.prologue.evidence.incident);
++            }
++
++            if (replay && loadPath.empty()) {
++                GameState duplicate = loadPath.empty()
++                    ? GameState{WorldSeed{seed}, config}
++                    : persistence::loadGameStateFile(loadPath);
++                runPrologue(duplicate, FactionId{origin});
++                if (stateHash(state) != stateHash(duplicate))
++                    throw std::runtime_error("Prologue replay mismatch at seed " + std::to_string(seed));
++            }
++
++            if (inspectPath == std::to_string(seed)) {
++                std::cout << "BaseWorldHash: " << std::hex << world::baseWorldHash(*state.world.base) << std::dec << "\n";
++            }
++
++            batch.u64(stateHash(state));
++            ++worlds;
++            totalEvents += state.history.events.size();
++            totalDealers += state.marketSimulation.dealers.size();
++
++            std::map<FactionId, std::uint64_t> supply;
++            std::uint64_t total = 0;
++            for (const auto& [id, m] : state.marketSimulation.districts) {
++                (void)id;
++                for (const auto& [f, e] : m.factions) { supply[f] += e.supply; total += e.supply; }
++            }
++            for (const auto& [f, n] : state.world.factions.entries()) {
++                (void)n;
++                maxMarket = std::max(maxMarket, total ? supply[f] * 10000 / total : 0);
++                maxControl = std::max(maxControl,
++                    static_cast<std::uint64_t>(controlledTerritoryCount(state, f)) * 10000 /
++                        state.world.territories.entries().size());
++            }
++
++            if (!savePath.empty() && first == last) {
++                persistence::saveGameStateFile(state, savePath);
++            }
++
++            if (seed == last) break;
++        }
++
++        std::cout << "Worlds: " << worlds
++            << "\nHistory events total: " << totalEvents
++            << "\nDealers total: " << totalDealers
++            << "\nLargest market share bps: " << maxMarket
++            << "\nLargest territorial share bps: " << maxControl
++            << "\nReplay: " << (replay ? "PASS" : "not requested")
++            << "\nBatchHash: " << std::hex << batch.value() << std::dec
++            << "\nValidation: PASS\n";
++
++        return 0;
++    } catch (const std::exception& e) {
++        std::cerr << "FAULTLINE PROLOGUE: " << e.what() << '\n';
++        return 1;
++    }
++}
