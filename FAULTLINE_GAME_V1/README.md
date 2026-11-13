@@ -1,292 +1,233 @@
-> Current checkpoint: **Phase 20 verified**, SaveFormatVersion 13 / StateHash v15.
-> Phase 21 Vehicles has not started. Earlier phase sections below are historical checkpoints.
+# FAULTLINE — Game and Simulation Engine
 
-# FAULTLINE
+**Build a world that remembers.**
 
-Purpose-built C++20 engine for the FAULTLINE procedural crime sandbox. Canonical
-design sources are the GDD, technical specifications and
-`../V1_IMPLEMENTATION_ROADMAP.md` in the parent directory. See
-[DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) for the verified checkpoint.
-The session's source-file inventory is in [docs/FILE_INDEX.md](docs/FILE_INDEX.md).
+> **Current checkpoint:** Phase 21 — Vehicles implemented and focused-verified.
+> GameVersion `0.1.0` · GeneratorVersion `3` · SaveFormatVersion `14` · StateHash `FAULTLINE.state.v16`.
+> The full canonical Release build/test gate remains pending. Phase 22 has not started at this checkpoint.
 
-## Build and tests
+FAULTLINE is a purpose-built C++20 engine for a procedural crime sandbox with a persistent, deterministic world. The engine separates authoritative simulation from rendering and platform input, allowing worlds, actors, factions, missions and vehicles to be exercised through headless tools and automated tests.
 
-With CMake and a C++20 compiler on PATH:
+The current project is an engine and simulation prototype, not a finished playable game or a production-ready SDK. Its development history and the scope of verified implementations are documented in [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) and the [Phase 21 verification report](docs/PHASE21_VERIFICATION.md).
 
-```powershell
+## Quick start
+
+Run the following commands from this directory (`FAULTLINE_GAME_V1/`).
+
+### Prerequisites
+
+- CMake 3.20 or newer (as required by [CMakeLists.txt](CMakeLists.txt)).
+- A C++20-capable compiler and a supported CMake build tool.
+- Git to clone the project. Python and PowerShell are only needed for the optional Windows tooling below.
+
+The runtime libraries have no external library dependencies. Tests use the vendored doctest 2.4.11 single header under the MIT license ([license](tests/vendor/LICENSE.txt), [upstream information](tests/vendor/README.md)).
+
+### Clone, build and test
+
+```sh
+git clone https://github.com/LuCa1506s/FAULTLINE.git
+cd FAULTLINE/FAULTLINE_GAME_V1
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-For this Windows machine, an optional portable toolchain stays entirely inside
-`.tools/` (no system installation):
+The commands use standard CMake tooling; a fresh clone and full cross-platform test run have not yet been verified at this checkpoint. Multi-configuration generators (such as Visual Studio) may place executables under `build/Debug/` or `build/Release/` instead of `build/`.
+
+### Optional portable Windows toolchain
+
+The Windows bootstrap installs development tools locally in `.tools/`, without requiring a system-wide compiler installation:
 
 ```powershell
 python tools/bootstrap_windows.py
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
-# Optional optimized build and the same tests:
+```
+
+The bootstrap is documented to download CMake 4.4.4, Ninja 1.13.2 and w64devkit 2.10.1. The build script uses Ninja and g++, and runs the complete CTest suite after building. For Release:
+
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configuration Release
 ```
 
-The portable bootstrap downloads CMake 4.4.4, Ninja 1.13.2 and w64devkit 2.10.1;
-runtime libraries have no external dependencies. Tests use vendored doctest.
-The PowerShell policy option applies only to that child process. For manual
-commands, open a process with the same option and dot-source
-`./tools/activate_toolchain.ps1` to activate the local tools.
+The execution policy option applies to that child PowerShell process only. For manual use, activate the portable toolchain in your shell with `./tools/activate_toolchain.ps1` (dot-source the script). Debug output goes to `build/`, Release output to `build-release/`.
 
 ## Architecture
 
-Dependencies point inward:
+The main library dependencies point inward:
 
 ```text
-faultline_sim -> faultline_persistence -> faultline_simulation -> faultline_world -> faultline_core
-faultline_worldgen -------------------------------------------> faultline_world
-faultline_savecheck -> faultline_persistence
-faultline_tests / faultline_persistence_tests (doctest only in tests)
+faultline_sim / gameplay tools
+            |
+            v
+faultline_persistence
+            |
+            v
+faultline_simulation
+            |
+            v
+faultline_world
+            |
+            v
+faultline_core
 ```
 
-`faultline_core` owns typed IDs, deterministic RNG, canonical hashing, integer
-time and diagnostics. `faultline_world` owns domain/component stores, spatial
-coordinates, indexing, basic streaming and M1/M2/M3 generation/validation.
-`faultline_simulation` owns GameState, Game, tick input, ordered commands,
-domain events, typed structural commit, scheduled aggregate faction operations, runtime territorial presence/control and
-semantic NPC activity/travel/relationships/promotion and district markets. FixedStepRunner belongs to the app
-boundary. Renderer/platform code cannot enter these libraries.
-Authoritative simulation is single-threaded and independent of windows or input
-devices. Algorithm and encoding contracts are in
-[docs/DETERMINISM.md](docs/DETERMINISM.md).
+| Module | Responsibility |
+| --- | --- |
+| `faultline_core` | Typed IDs, deterministic RNG, canonical hashing, integer simulation time and diagnostics. |
+| `faultline_world` | Entity and component stores, spatial indexing, streaming, versioned world generation and validation. |
+| `faultline_simulation` | GameState, ordered commands, domain events, factions, NPCs, territories, markets, history, story, missions, player movement, combat, police and vehicles. |
+| `faultline_persistence` | Versioned binary saves, validation, historical migrations and semantic-state restoration. |
+| Headless tools | World generation, simulation, save inspection, history, story, prologue, player, characters, combat, police, vehicles and SVG map inspection. |
 
-## Headless tools
+The authoritative simulation is single-threaded and independent of rendering and window/input devices. The fixed simulation tick is 50 ms (20 Hz). Renderer and platform code stay outside the simulation libraries; `FixedStepRunner` belongs to the application boundary. See [determinism contracts](docs/DETERMINISM.md) and the [source-file inventory](docs/FILE_INDEX.md).
+
+## Implemented systems
+
+| Area | Current scope |
+| --- | --- |
+| World generation | Versioned M1/M2/M3 generation: geography, roads, districts, parcels, buildings, faction territories, major NPCs and relationships. |
+| Strategic simulation | Scheduled faction operations, territorial control, district markets, NPC activities and relationships, four-year strategic history. |
+| Story and missions | Semantic story graph, generic mission lifecycle/objectives and the FIRST DELIVERY prologue. |
+| Player and NPC movement | Fixed-tick physical player, static swept collision, active NPC movement and deterministic streaming residency. |
+| Combat and police | Weapon definitions, ammo/cooldowns/reload, damage/death, witnesses, delayed crime reports, wanted-state logic and arrests. |
+| Vehicles | V1 civilian and police cars, persistent identity, streaming bodies, enter/exit, driving, static collisions and save/load. |
+| Persistence | Save format v14, StateHash v16, bounded encoding, historical migration and validation. |
+| Visualization | Non-authoritative 2D SVG debug maps of generated worlds and saved state. |
+
+The table describes implemented foundations, not complete gameplay systems. For example, full traffic scheduling, production rendering and Phase 22 content are not part of the current checkpoint.
+
+## Run headless demos
+
+Examples below use the portable Windows Debug build layout. For Linux or other Unix-like environments, omit `.exe`; for multi-configuration generators, adjust the executable directory as described above. From a standard Windows PowerShell shell:
+
+### Generate and inspect a world
 
 ```powershell
 ./build/faultline_worldgen.exe --seed 12345 --validate
-./build/faultline_worldgen.exe --seed 12345 --version 1 --validate
-./build/faultline_worldgen.exe --seed 12345 --version 2 --validate
 ./build/faultline_worldgen.exe --seed 12345 --dump-factions --dump-npcs
 ./build/faultline_worldgen.exe --range 1 1000 --validate
-./build/faultline_worldgen.exe --seed 42 --width 512 --depth 512 --water-percent 0
-./build/faultline_sim.exe
-./build/faultline_sim.exe --seed 12345 --days 30
-./build/faultline_sim.exe --seed 12345 --days 365
-./build/faultline_sim.exe --range 1 250 --days 30
+```
+
+GeneratorVersion 3 is the default. Versions 1 and 2 remain available with their historical BaseWorldHash contracts. M1 defines bounded geography and a connected road network; M2 adds parcels and urban geometry; M3 adds factions, NPCs and relationships. See [M2 generation](docs/WORLDGEN_M2.md) and [M3 generation](docs/WORLDGEN_M3.md).
+
+### Simulate, save and resume
+
+```powershell
 ./build/faultline_sim.exe --seed 12345 --days 30 --save ./build/seed12345.flsave
 ./build/faultline_sim.exe --load ./build/seed12345.flsave --days 335
-./build/faultline_savecheck.exe --seed 12345
-./build/faultline_savecheck.exe --inspect ./build/example.flsave
+./build/faultline_savecheck.exe --inspect ./build/seed12345.flsave
 ```
 
-M1 includes bounds, flat buildable geography, an optional west/east coast,
-5–10 contiguous rectangular macro-zones, a connected road grid with arterial,
-major and local roads, and 1–3 districts per macro-zone. The configuration
-supports nonzero origins, micro-worlds and larger maps. Current explicit M1
-resource limits are 512–1,000,000 meters per axis, not a permanent engine limit.
+The headless simulator reports faction strategy, NPC activity, territory and market updates, and StateHash. Scheduled aggregate advancement skips only idle ticks; it uses the same authoritative tick pipeline at scheduled boundaries.
 
-Generation always validates before returning; `--validate` is also accepted for
-explicit tool invocations. Unsupported versions and invalid options fail with
-nonzero exit codes and seed/version diagnostics. `BaseWorldHash` covers all
-generated fields of the selected version and their configuration in canonical order.
-
-`faultline_sim` runs playerless aggregate faction strategy (default seed 12345,
-30 game days). It reports resources, attack/defense outcomes, NPC semantic updates,
-travel, operation participation, relationship changes, promotions, territorial
-transitions, per-faction control counts, market updates, income and abstract
-supply/demand, plus StateHash.
-`--log-operations` exposes individual transitions. It uses the normal tick pipeline
-at scheduled boundaries and skips only idle ticks; no wall-time sleep is involved.
-Territory control follows current presence and attack/defense consequences;
-district markets earn income from real Dealer participation; diplomacy, named
-NPC lifecycle and police behavior remain unchanged. Details and current limitations are in
-[docs/FACTION_SIMULATION_M1.md](docs/FACTION_SIMULATION_M1.md) and
-[docs/NPC_SEMANTIC_M1.md](docs/NPC_SEMANTIC_M1.md), with territorial rules in
-[docs/TERRITORY_M1.md](docs/TERRITORY_M1.md) and
-[docs/MARKET_M1.md](docs/MARKET_M1.md).
-Player input is abstract data; movement/combat systems are later roadmap work.
-The streaming API commits at explicit structural boundaries; game-driven
-streaming focus arrives with the player controller.
-
-Worldgen now defaults to generator version 3 / M3: five main factions from the four
-canonical families, 15–25 semantic major NPCs, initial connected territorial
-presence and directed political/personal relationships. Reports include `Factions`
-and `MajorNPCs`; optional actor dumps expose identities and home references.
-`--version 1` and `--version 2` preserve prior worlds/hashes. The mass range command
-validates every selected world and reports duplication/NPC/share/diplomacy statistics
-plus tool-only timing. The 1000-seed Debug batch has a 900-second CTest timeout.
-
-The full build script still runs all tests. For iteration only, after building:
+### History, prologue and player systems
 
 ```powershell
-ctest --test-dir build -L fast --output-on-failure
-ctest --test-dir build -L stress --output-on-failure
+./build/faultline_history.exe --seed 12345 --fixture-prologue --replay --save ./build/history.flsave
+./build/faultline_story.exe --load ./build/history.flsave
+./build/faultline_prologue.exe --seed 12345 --verbose
+./build/faultline_player.exe --seed 12345 --ticks 12000 --save ./build/player.flsave
+./build/faultline_characters.exe --seed 12345 --ticks 1200
+./build/faultline_combat.exe --seed 12345 --rounds 6
+./build/faultline_police.exe --seed 12345 --ticks 240
 ```
 
-The stress gate remains required for a milestone; it is not replaced by fast tests.
+The synthetic prologue fixture used by history/story tools is distinct from the runtime FIRST DELIVERY mission. These demos are headless and do not require a renderer.
 
-Algorithms, configuration and geometric limits are documented in
-[docs/WORLDGEN_M2.md](docs/WORLDGEN_M2.md). Verified results and the roadmap
-checkpoint are recorded in DEVELOPMENT_STATUS. Actor generation and its limits are
-documented in [docs/WORLDGEN_M3.md](docs/WORLDGEN_M3.md).
-
-Save Foundation uses a separate `faultline_persistence` target, full semantic
-binary saves with versioned headers and bounded little-endian encoding. The
-memory/file API, snapshot policy and actual format are documented in
-[docs/SAVE_FORMAT_V8.md](docs/SAVE_FORMAT_V8.md), with real v1..v7 migration. The
-[v1 document](docs/SAVE_FORMAT_V1.md) remains historical reference. The savecheck tool verifies
-round-trip hash/bytes and reports size/timing; it generates no files by default.
-Use `ctest --test-dir build -L persistence --output-on-failure` for save tests.
-
-
-Phase 13 adds `faultline_history`, a headless four-year structural transition:
+### Phase 21: vehicles
 
 ```powershell
-build/faultline_history.exe --seed 12345 --fixture-prologue --replay --save build/history.flsave
-build/faultline_sim.exe --load build/history.flsave --days 365
+./build/faultline_vehicles.exe --seed 12345 --ticks 240 --save ./build/vehicles.flsave
+./build/faultline_vehicles.exe --range 1 100 --ticks 240
 ```
 
-Fresh tool generation explicitly uses synthetic prologue evidence; the real FIRST
-DELIVERY mission remains Phase 16. HistoryVersion 1 uses 48 monthly strategic
-steps, daily coarse market accounting, paid dealer spread, actual garrison
-settlement and causal political/personal relationships. All five factions enter
-a viable, city-wide market with unresolved tensions. Monthly checkpoints save
-and resume exactly. See [STRATEGIC_HISTORY.md](docs/STRATEGIC_HISTORY.md) and
-[PHASE13_VERIFICATION.md](docs/PHASE13_VERIFICATION.md).
-
-Phase 14 adds an explicitly initialized post-history semantic story graph:
-
-```powershell
-build/faultline_story.exe --seed 12345 --fixture-prologue --save build/story.flsave
-build/faultline_story.exe --load build/history.flsave
-ctest --test-dir build -L story --output-on-failure
-```
-
-The graph projects high-level possibilities and success/failure branches, queries
-actual world eligibility and repairs invalid contacts using existing semantic
-actors. It never forces world outcomes. Save v8 / StateHash v10 persist graph
-identity, dependencies and outcomes. Details: [STORY_GRAPH.md](docs/STORY_GRAPH.md).
-This includes no Mission Core or runtime FIRST DELIVERY; stop before Phase 15.
-
-Phase 15 adds the Mission Core: generic mission system with MissionState lifecycle
-(AVAILABLE, ACCEPTED, ACTIVE, COMPLETED, FAILED, EXPIRED, INVALIDATED, RESOLVED_BY_NPC),
-objective graph (GO_TO, INTERACT, DELIVER, PROTECT, ATTACK), typed IDs (MissionId,
-ObjectiveId), MissionDefinition/MissionInstance separation, event-driven architecture
-via semantic events (LocationReached, InteractionOccurred, DeliveryOccurred,
-ProtectedTargetResolved, AttackTargetResolved), StoryGraph bridge, persistence
-(SaveFormatVersion 9, StateHash v11), validation, and deterministic save/load.
-All tests pass, including persistence, story, core, faction, NPC, territory, and
-market tests. Historical BaseWorldHash fixtures remain unchanged: v1 2938f0ca42162bc9,
-v2 5f3a446fe0d2f974, v3 888c5dbd10c15886.
-
-This includes no runtime FIRST DELIVERY; stop before Phase 16.
-
-Phase 16 adds PRIMARY 001 FIRST DELIVERY: the canonical prologue mission implemented
-via the generic MissionSystem (GO_TO->INTERACT->DELIVER objective graph), procedural
-rival discovery through the fictional drug, and the structural four-year transition
-to the post-timeskip sandbox:
-
-```powershell
-build/faultline_prologue.exe --seed 12345 --verbose
-build/faultline_prologue.exe --seed 12345 --save build/prologue.flsave
-build/faultline_prologue.exe --load build/prologue.flsave --verbose
-build/faultline_prologue.exe --range 1 50 --replay
-ctest --test-dir build -L prologue --output-on-failure
-```
-
-The prologue creates exactly one PRIMARY 001 mission using the origin faction leader
-as giver and a major origin-faction NPC as recipient, with the abstract fictional
-product (token 1). Delivery completion triggers deterministic rival discovery from
-the six canonical incident categories (rival witness, betrayal, accidental exposure,
-police interference, wrong destination, information leak). The discovered rival
-then enters the four-year strategic history that stabilizes all five factions into
-the unstable five-faction market equilibrium. No physical entities are created during
-the prologue; no realistic production/trafficking mechanics are added. SaveFormatVersion
-advances to 10 (Prologue section) and StateHash to v12. Details:
-[FIRST_DELIVERY.md](docs/FIRST_DELIVERY.md), [SAVE_FORMAT_V10.md](docs/SAVE_FORMAT_V10.md),
-[PHASE16_VERIFICATION.md](docs/PHASE16_VERIFICATION.md). Phase 17 is not started.
-
-
-Phase 17 adds an explicit physical player with semantic movement/aim input,
-5 m/s fixed-50-ms movement, normalized cell/local positions, static swept collision,
-interaction intent, and deterministic logical streaming residency across save/load.
-The prologue tool remains headless and does not create a body implicitly.
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configuration Release
-build-release/faultline_player.exe --seed 12345 --ticks 12000 --save build-release/player.flsave
-build-release/faultline_player.exe --range 1 25 --ticks 12000
-ctest --test-dir build-release -L player --output-on-failure
-```
-
-See [PLAYER_CONTROLLER.md](docs/PLAYER_CONTROLLER.md),
-[SAVE_FORMAT_V11.md](docs/SAVE_FORMAT_V11.md), and the measured
-[Phase 17 verification](docs/PHASE17_VERIFICATION.md). Character AI/combat/rendering
-are not included; stop before Phase 18.
-
-Phase 18 adds active-only physical NPC movement driven by semantic activity and
-faction assignments. It reuses the player collision controller, preserves NpcId
-through abstraction, and keeps transient EntityId residency deterministic:
-
-```powershell
-build-release/faultline_characters.exe --seed 12345 --ticks 1200 --save build-release/character.flsave
-build-release/faultline_characters.exe --range 1 10 --ticks 1000
-ctest --test-dir build-release -L character_ai --output-on-failure
-```
-
-See [CHARACTER_AI.md](docs/CHARACTER_AI.md) and
-[PHASE18_VERIFICATION.md](docs/PHASE18_VERIFICATION.md). Attack intent is approach
-movement only; combat, police and vehicle AI remain outside Phase 18.
-
-## Phase 19 / combat foundation
-
-`CombatSystem` converts player and active-NPC attack intent into validated range,
-static line-of-sight resolution, existing Health changes and semantic NPC death.
-Pistol, shotgun and SMG definitions are immutable; instances persist ammo and
-tick-based cooldown/reload state. SaveFormatVersion 12 and StateHash v14 add this
-runtime state. Run `faultline_combat --seed 12345 --rounds 6` for a headless
-deterministic scenario. See [COMBAT.md](docs/COMBAT.md).
-
-## Phase 20 / witness and police
-
-Authoritative Combat facts become typed CrimeEvents. Bounded local witnesses use
-simulation range and static geometry, delayed reports create explicit police
-knowledge, and the eight-state Wanted FSM drives search/pursuit from persisted
-last-known information. Police officers remain semantic NPCs with streaming-owned
-transient bodies; movement reuses Character AI and damage reuses CombatSystem.
-Arrest advances the world 120 game days instead of resetting it.
-
-```powershell
-build-release/faultline_police.exe --seed 12345 --ticks 240 --save build-release/police.flsave
-build-release/faultline_police.exe --range 1 100 --ticks 240
-ctest --test-dir build-release -L police --output-on-failure
-```
-
-See [WITNESS_POLICE.md](docs/WITNESS_POLICE.md),
-[SAVE_FORMAT_V13.md](docs/SAVE_FORMAT_V13.md), and
-[PHASE20_VERIFICATION.md](docs/PHASE20_VERIFICATION.md). Vehicles and Phase 21 are
-not implemented.
+Vehicles have a persistent `VehiclePersistentId` independent of their transient physical `EntityId`. Fresh games seed a deterministic fleet from the road graph; loading and migration do not generate a new fleet. Streaming materializes and abstracts vehicle bodies, preserving semantic state and residency leases. V1 supports Sedan, Hatchback and PoliceCruiser archetypes, enter/exit, fixed-tick driving, and static swept collision with bounded damage.
 
 ### 2D debug map viewer
 
-`faultline_map2d` is a **non-authoritative** SVG visualization tool for inspecting
-generated worlds and saved state as 2D top-down maps. It does not advance simulation,
-consume RNG, modify GameState, or change any persistent schema or hashes.
-
-```
-build/faultline_map2d.exe --seed 12345 --output build/seed12345.svg
-build/faultline_map2d.exe --seed 12345 --runtime --output build/runtime12345.svg --labels
-build/faultline_map2d.exe --load build/player.flsave --output build/save.svg
-build/faultline_map2d.exe --seed 12345 --output build/seed12345.svg --diagnostics
+```powershell
+./build/faultline_map2d.exe --seed 12345 --output ./build/seed12345.svg
+./build/faultline_map2d.exe --seed 12345 --runtime --output ./build/runtime12345.svg --labels
+./build/faultline_map2d.exe --load ./build/player.flsave --output ./build/save.svg
+./build/faultline_map2d.exe --seed 12345 --output ./build/seed12345.svg --diagnostics
 ```
 
-Optional flags: `--no-buildings`, `--no-parcels`, `--no-territories`, `--no-npcs`,
-`--runtime` (seed mode), `--labels`, `--width PX`, `--diagnostics`.
+Open the generated SVG in a browser. Map2D is a non-authoritative inspection tool: it does not advance simulation or change RNG, persistent schemas or state hashes. Raw seed mode has no player or physical NPCs. Runtime seed mode creates the canonical player and streaming residency without advancing a tick. See [Map2D documentation](docs/MAP2D_DEBUG_VIEWER.md).
 
-Raw seed mode contains no player or physical NPCs. Runtime seed mode uses canonical
-player creation and streaming residency without advancing a tick. The current data
-model has faction home territories but no authoritative HQ point, so the viewer does
-not fabricate HQ markers.
+## Testing and verification
 
-The `--diagnostics` flag prints a structured spatial bounds report to stdout,
-including world/road/district/parcel/building/territory/water extents, coverage
-percentages, and the SVG view transform. The generated SVG remains byte-identical
-whether or not `--diagnostics` is supplied. See
-[MAP2D_DEBUG_VIEWER.md](docs/MAP2D_DEBUG_VIEWER.md).
+After building, CTest provides fast, focused and stress suites:
+
+```sh
+ctest --test-dir build -C Debug -L fast --output-on-failure
+ctest --test-dir build -C Debug -L persistence --output-on-failure
+ctest --test-dir build -C Debug -R "vehicle|persistence|police" -LE stress --output-on-failure
+ctest --test-dir build -C Debug -L stress --output-on-failure
+```
+
+Fast or focused tests do not replace the full canonical milestone gate. For a clean Release validation:
+
+```sh
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release --config Release
+ctest --test-dir build-release -C Release --output-on-failure
+```
+
+### Recorded Phase 21 evidence
+
+The [Phase 21 report](docs/PHASE21_VERIFICATION.md) records the following results after the review repairs:
+
+| Check | Recorded result |
+| --- | --- |
+| Focused vehicle, persistence and police suites | 5/5 passed |
+| Mass-seed vehicle run | 100/100 worlds, zero skipped |
+| Simulation ticks per world | 240 |
+| Vehicles encountered | 4,464 (1,488 police; 2,976 civilian) |
+| Save, continuation, StateHash and identity mismatches | 0 in the tested scenarios |
+| Additional deterministic collision cases | 5 passed |
+| Vehicle mass-run BatchHash | `51e56c4d84beb3ec` |
+
+These results are historical recorded evidence, not a fresh independent test run of the current GitHub commit. The report states that the full-tree build could not finish linking `faultline_history.exe` because another Windows process held the executable open. The full canonical Release gate remains pending; no claim of full-suite or cross-platform verification is made here.
+
+## Persistence and determinism
+
+| Contract | Current version |
+| --- | --- |
+| GameVersion | `0.1.0` |
+| GeneratorVersion | `3` |
+| SaveFormatVersion | `14` |
+| StateHash | `FAULTLINE.state.v16` |
+| VehicleSimulationVersion | `1` |
+
+Save v14 adds the VehicleSimulation section with semantic vehicle state, driving identity and residency leases. Physical vehicle bodies are transient and are rebuilt on load. Legacy migration initializes a neutral vehicle simulation without seeding a new fleet or consuming gameplay RNG. See [Save format v14](docs/SAVE_FORMAT_V14.md) for validation and migration rules.
+
+Historical world-generation hash contracts remain unchanged: v1 `2938f0ca42162bc9`, v2 `5f3a446fe0d2f974`, v3 `888c5dbd10c15886`.
+
+## Scope and limitations
+
+- Phase 21 is a V1 car simulation foundation, not a complete traffic or vehicle-physics engine.
+- Streaming uses fixed 512 m activation and 640 m deactivation radii; the driven vehicle is pinned. Velocity-based prefetch is deferred.
+- No inter-district vehicle travel/arrival scheduling, traffic density simulation, motorcycle/boat/aircraft gameplay, advanced tuning or police response vehicles is implemented in this checkpoint.
+- No production renderer or complete playable game is claimed. Map2D is a debug tool.
+- The full Release gate and independent clean-clone validation remain open. Phase 22 is outside this checkpoint.
+
+## Documentation and development history
+
+| Topic | Reference |
+| --- | --- |
+| Current checkpoint and historical phases | [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) |
+| Published architecture and specifications | [Technical index](../docs/TECHNICAL_INDEX.md) |
+| Determinism and source layout | [Determinism](docs/DETERMINISM.md), [File index](docs/FILE_INDEX.md) |
+| Strategic simulation | [Factions](docs/FACTION_SIMULATION_M1.md), [NPCs](docs/NPC_SEMANTIC_M1.md), [Territory](docs/TERRITORY_M1.md), [Market](docs/MARKET_M1.md) |
+| History and story | [Strategic history](docs/STRATEGIC_HISTORY.md), [Story graph](docs/STORY_GRAPH.md), [First delivery](docs/FIRST_DELIVERY.md) |
+| Player, AI and combat | [Player controller](docs/PLAYER_CONTROLLER.md), [Character AI](docs/CHARACTER_AI.md), [Combat](docs/COMBAT.md) |
+| Police | [Witness and police](docs/WITNESS_POLICE.md), [Phase 20 verification](docs/PHASE20_VERIFICATION.md) |
+| Vehicles | [Phase 21 verification](docs/PHASE21_VERIFICATION.md), [Save v14](docs/SAVE_FORMAT_V14.md) |
+
+Earlier phase reports are historical checkpoints; older version numbers and deferred features in those reports must not be interpreted as the current state. The public technical specifications describe design goals and may include features not implemented yet. The current code and development status are the implementation reference.
+
+## Contributing and license
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines. Preserve deterministic behavior, persistent identity and historical save compatibility; add reproducible tests for changes to simulation contracts.
+
+Original project code and technical documentation are licensed under [Apache License 2.0](../LICENSE), subject to the scope and exceptions in [LICENSING.md](../LICENSING.md). Third-party materials retain their own licenses; see [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md). The overall third-party inventory is still pending audit.
