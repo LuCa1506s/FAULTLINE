@@ -1,4 +1,4 @@
-﻿# FAULTLINE
+# FAULTLINE
 
 **Build a world that remembers.**
 
@@ -9,10 +9,8 @@ The project is under active development.
 ## Project structure
 
 - [Game and engine source code](FAULTLINE_GAME_V1/)
-- [Technical specifications](docs/)
+- [Technical specifications](docs/TECHNICAL_INDEX.md)
 - [Development status](FAULTLINE_GAME_V1/DEVELOPMENT_STATUS.md)
-- [Game design document](docs/GDD_FAULTLINE_v0.1.md)
-- [Implementation roadmap](docs/V1_IMPLEMENTATION_ROADMAP.md)
 - [Contributing guidelines](CONTRIBUTING.md)
 
 ## Development
