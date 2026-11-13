@@ -1,4 +1,4 @@
-#include "persistence/schema_v13.hpp"
+#include "persistence/schema_v14.hpp"
 #include "simulation/factions/faction_system.hpp"
 #include "simulation/npc/npc_system.hpp"
 #include "simulation/territory/territory_system.hpp"
@@ -8,7 +8,9 @@
 #include "simulation/player/player_system.hpp"
 #include "simulation/combat/combat_system.hpp"
 #include "simulation/police/police_system.hpp"
+#include "simulation/vehicles/vehicle_system.hpp"
 #include "world/spatial/streaming.hpp"
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -22,9 +24,80 @@ SaveError::SaveError(SaveErrorCode errorCode, std::string errorSection, std::siz
 namespace {
 using detail::Writer;
 using detail::Reader;
-    enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation, Prologue, Player, Combat, Police };
+    enum class Section : std::uint32_t { Runtime=1, Generated, Entities, Districts, Territories, Factions, Npcs, Vehicles, Missions, Relationships, FactionSimulation, NpcSimulation, TerritorySimulation, MarketSimulation, StrategicHistory, StoryGraph, MissionSimulation, Prologue, Player, Combat, Police, VehicleSimulation };
     constexpr std::uint32_t legacySectionCount=10;
-    constexpr std::uint32_t sectionCount=21;
+    constexpr std::uint32_t sectionCount=22;
+std::uint32_t expectedSectionCount(std::uint32_t version) {
+    if (version==1) return legacySectionCount;
+    if (version==2) return 11;
+    if (version==3) return 12;
+    if (version<=5) return 13;
+    if (version==6) return 14;
+    if (version==7) return 15;
+    if (version==8) return 16;
+    if (version==9) return 17;
+    if (version==10) return 18;
+    if (version==11) return 19;
+    if (version==12) return 20;
+    if (version==13) return 21;
+    return sectionCount;
+}
+void migrateLegacyVehicles(GameState& state) {
+    // V1-v13 vehicles were only ever "an optional physical body". Neither fleet
+    // seeding nor semantic vehicle state existed. Reconstruct a deterministic V1
+    // car profile without consuming gameplay RNG or inventing a location/owner.
+    auto& world=state.world;
+    state.vehicleSimulation=simulation::VehicleSimulationState{};
+    for (const auto& [id,record] : world.vehicles.entries()) {
+        auto& vehicle=world.vehicles.get(id);
+        const auto entity=record.activeEntity;
+        world::Health health{};
+        if (entity) {
+            if (!world.transforms.contains(entity) || !world.health.contains(entity))
+                core::require(false,"Legacy vehicle body is incomplete");
+            health=world.health.get(entity);
+        }
+        auto archetype=world::VehicleArchetype::Sedan;
+        if (health.maximum==world::vehicleDefinition(world::VehicleArchetype::PoliceCruiser).maxHealth)
+            archetype=world::VehicleArchetype::PoliceCruiser;
+        else if (health.maximum==world::vehicleDefinition(world::VehicleArchetype::Hatchback).maxHealth)
+            archetype=world::VehicleArchetype::Hatchback;
+        const auto& definition=world::vehicleDefinition(archetype);
+        vehicle.category=definition.category;
+        vehicle.archetype=archetype;
+        vehicle.passengerCapacity=definition.passengerCapacity;
+        vehicle.ownership={};
+        vehicle.location={};
+        vehicle.yaw=0.0F;
+        vehicle.speed=0.0F;
+        if (entity) {
+            vehicle.position=world::normalize(world.transforms.get(entity).position,
+                world.spatial.cellSize());
+            health.maximum=definition.maxHealth;
+            // Preserve existing health if positive, otherwise default to full so the
+            // resident is eligible for streaming post-migration. Wrecked vehicles (health
+            // current <= 0) are given a full health profile so they can be materialized
+            // and remain valid members of the vehicle registry.
+            if (health.current > 0) {
+                health.current=std::min(health.current,health.maximum);
+            } else {
+                health.current=health.maximum;
+            }
+            world.health.set(world.entities,entity,health);
+            world.vehicleBodies.set(world.entities,entity,
+                {0.0F,definition.halfLength,definition.halfWidth});
+            world.vehiclePhysics.set(world.entities,entity,
+                {0.0F,definition.acceleration,definition.steeringRate});
+            state.vehicleSimulation.residents.push_back({id,entity});
+        } else {
+            vehicle.position=world::normalize(vehicle.position,world.spatial.cellSize());
+            health={definition.maxHealth,definition.maxHealth};
+        }
+        vehicle.condition.health=health;
+    }
+    std::sort(state.vehicleSimulation.residents.begin(),
+        state.vehicleSimulation.residents.end());
+}
 void header(Reader& r) {
     r.need(saveMagic.size());
     for (auto expected : saveMagic) {
@@ -107,6 +180,16 @@ void validateLoaded(GameState& state, Reader& r) {
     if (!state.world.npcLinks.entries().empty()) r.fail(SaveErrorCode::InvalidData,"NPC bodies are transient");
     for (const auto& [id,npc] : state.world.npcs.entries()) {
         (void)id; if (npc.activeEntity) r.fail(SaveErrorCode::InvalidData,"Saved NPC must be abstract");
+    }
+    // V14 stores vehicles semantically. Older formats may contain a legacy body,
+    // which migration above has already converted into a coherent active lease.
+    if (r.header.saveFormatVersion.value>=14) {
+        if (!state.world.vehicleLinks.entries().empty())
+            r.fail(SaveErrorCode::InvalidData,"Vehicle bodies are transient");
+        for (const auto& [id,vehicle] : state.world.vehicles.entries()) {
+            (void)id; if (vehicle.activeEntity)
+                r.fail(SaveErrorCode::InvalidData,"Saved vehicle must be abstract");
+        }
     }
     world::rebuildSpatialIndex(state.world);
 }
@@ -193,6 +276,20 @@ SaveBytes saveGameState(const GameState& state) {
             for (const auto& [id,value]:p.districtPressureBps) a(id,value);
             a(p.pendingArrest,p.arrestPosition);
         });
+        section(w,Section::VehicleSimulation,[&](Writer& a){
+            const auto& v=state.vehicleSimulation;
+            a(v.version,v.rules,v.drivenVehicle);
+            a.collection(v.residents.size());
+            for (const auto& resident : v.residents) a(resident);
+            // Persistent identity is the store key. Bodies never enter this section;
+            // the legacy Vehicles section keeps its historical activeEntity-only wire.
+            a.collection(world.vehicles.entries().size());
+            for (const auto& [id,vehicle] : world.vehicles.entries()) {
+                a(id,vehicle.activeEntity,vehicle.category,vehicle.archetype,
+                  vehicle.ownership,vehicle.condition,vehicle.location,vehicle.position,
+                  vehicle.yaw,vehicle.speed,vehicle.passengerCapacity);
+            }
+        });
         return std::move(w.bytes);
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) {
@@ -205,7 +302,7 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
     if (bytes.size()>maxSaveBytes) r.fail(SaveErrorCode::InvalidData,"Save resource limit");
     try {
         header(r); std::uint32_t count{}; r(count);
-        if (count!=(r.header.saveFormatVersion.value==1 ? legacySectionCount : r.header.saveFormatVersion.value==2 ? 11U : r.header.saveFormatVersion.value==3 ? 12U : r.header.saveFormatVersion.value<=5 ? 13U : r.header.saveFormatVersion.value==6 ? 14U : r.header.saveFormatVersion.value==7 ? 15U : r.header.saveFormatVersion.value==8 ? 16U : r.header.saveFormatVersion.value==9 ? 17U : r.header.saveFormatVersion.value==10 ? 18U : r.header.saveFormatVersion.value==11 ? 19U : r.header.saveFormatVersion.value==12 ? 20U : sectionCount))
+        if (count!=expectedSectionCount(r.header.saveFormatVersion.value))
             r.fail(SaveErrorCode::InvalidData,"Incorrect section count");
         world::WorldState world; RuntimeRandomState random{r.header.worldSeed}; core::SimulationClock clock;
         section(r,Section::Runtime,"runtime",[&](Reader& a){
@@ -350,6 +447,36 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
                 previous=id;police.districtPressureBps.emplace(id,value);}
             a(police.pendingArrest,police.arrestPosition);
         });
+        simulation::VehicleSimulationState vehicleSimulation;
+        std::map<VehiclePersistentId,world::VehicleState> vehicleSemantics;
+        if (r.header.saveFormatVersion.value>=14) {
+            section(r,Section::VehicleSimulation,"vehicle simulation",[&](Reader& a){
+                a(vehicleSimulation.version,vehicleSimulation.rules,vehicleSimulation.drivenVehicle);
+                const auto residentCount=a.count(); VehiclePersistentId previousVehicle{};
+                for(std::uint32_t i=0;i<residentCount;++i){
+                    simulation::VehicleResidency resident{}; a(resident);
+                    if(!resident.vehicle || !resident.entity || resident.vehicle<=previousVehicle)
+                        a.fail(SaveErrorCode::InvalidData,"Invalid vehicle residency order");
+                    previousVehicle=resident.vehicle;
+                    vehicleSimulation.residents.push_back(resident);
+                }
+                const auto semanticCount=a.count();
+                if (semanticCount!=world.vehicles.entries().size())
+                    a.fail(SaveErrorCode::InvalidData,"Vehicle semantic count mismatch");
+                VehiclePersistentId previous{};
+                for(std::uint32_t i=0;i<semanticCount;++i){
+                    VehiclePersistentId id{}; world::VehicleState value{};
+                    a(id,value.activeEntity,value.category,value.archetype,value.ownership,
+                      value.condition,value.location,value.position,value.yaw,value.speed,
+                      value.passengerCapacity);
+                    if(!id || id<=previous || !world.vehicles.exists(id))
+                        a.fail(SaveErrorCode::InvalidData,"Invalid vehicle semantic key");
+                    if(value.activeEntity!=world.vehicles.get(id).activeEntity)
+                        a.fail(SaveErrorCode::InvalidData,"Vehicle active body mismatch");
+                    previous=id; vehicleSemantics.emplace(id,std::move(value));
+                }
+            });
+        }
         if (r.remaining()!=0) r.fail(SaveErrorCode::InvalidData,"Trailing save data");
         r.section="semantic validation";
         GameState state{{r.header.worldSeed,r.header.generatorVersion},clock,std::move(random),std::move(world)};
@@ -386,6 +513,13 @@ GameState loadGameState(std::span<const std::uint8_t> bytes) {
         else simulation::initializeCombatSimulation(state);
         if (r.header.saveFormatVersion.value>=13) state.police=std::move(police);
         else simulation::initializePoliceSimulation(state);
+        if (r.header.saveFormatVersion.value>=14) {
+            state.vehicleSimulation=std::move(vehicleSimulation);
+            for (auto& [id,value] : vehicleSemantics)
+                state.world.vehicles.get(id)=std::move(value);
+        } else {
+            migrateLegacyVehicles(state);
+        }
         validateLoaded(state,r); return state;
     } catch (const SaveError&) { throw; }
     catch (const std::exception& e) { r.fail(SaveErrorCode::ValidationFailure,e.what()); }

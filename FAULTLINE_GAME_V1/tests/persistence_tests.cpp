@@ -85,22 +85,37 @@ TEST_CASE("active NPC syncs to abstract semantic snapshot and can materialize ag
     CHECK(newBody.value()>body.value()); CHECK(restored.world.transforms.get(newBody).position==position);
     CHECK(restored.world.health.get(newBody).current==42); CHECK(restored.world.npcs.get(npc).identity==state.world.npcs.get(npc).identity);
 }
-TEST_CASE("dead records mission status and existing vehicle components persist without caches") {
+TEST_CASE("dead records mission status and active vehicle snapshots preserve identity") {
     auto state=emptyState(); auto& w=state.world;
     world::NpcState dead; dead.lifecycle=world::NpcLifecycle::Dead;
     dead.identity.name="Storico \xC3\xA8"; const auto npc=w.npcs.create(dead);
     const auto mission=w.missions.create({world::MissionResolution::ResolvedByNpc,npc});
-    const auto vehicle=w.vehicles.create(); const auto body=w.entities.create();
-    w.vehicles.get(vehicle).activeEntity=body;
-    w.vehicleLinks.set(w.entities,body,{vehicle}); w.transforms.set(w.entities,body,{world::fromGlobal({-1,2,300},64)});
-    w.health.set(w.entities,body,{12,80}); w.spatial=world::SpatialGrid{64};
-    CHECK(w.spatial.queryCell({-1,4}).empty());
+    w.spatial=world::SpatialGrid{64};
+    const auto& definition=world::vehicleDefinition(world::VehicleArchetype::Sedan);
+    world::VehicleState semantic;
+    semantic.category=definition.category; semantic.archetype=definition.archetype;
+    semantic.passengerCapacity=definition.passengerCapacity;
+    semantic.condition.health={definition.maxHealth,definition.maxHealth};
+    semantic.position=world::fromGlobal({-1,2,300},64); semantic.yaw=1.25F;
+    const auto vehicle=w.vehicles.create(semantic);
+    const auto body=world::materializeVehicle(w,vehicle);
+    w.transforms.get(body).position=world::fromGlobal({-1,2,300},64);
+    w.health.get(body).current=12;
+    CHECK(w.spatial.queryCell({-1,4})==std::vector<EntityId>{body});
     const auto bytes=saveGameState(state); auto restored=loadGameState(bytes);
     CHECK(stateHash(state)==stateHash(restored)); CHECK(saveGameState(restored)==bytes);
     CHECK(restored.world.npcs.get(npc)==dead); CHECK(restored.world.missions.get(mission).status==world::MissionResolution::ResolvedByNpc);
     CHECK(restored.world.missions.get(mission).issuer==npc);
-    CHECK(restored.world.spatial.queryCell({-1,4})==std::vector<EntityId>{body});
-    CHECK(restored.world.health.get(body).current==12); CHECK(restored.world.vehicles.get(vehicle).activeEntity==body);
+    CHECK_FALSE(restored.world.vehicles.get(vehicle).activeEntity);
+    CHECK(restored.world.vehicles.get(vehicle).position==semantic.position);
+    CHECK(restored.world.vehicles.get(vehicle).condition.health.current==12);
+    CHECK_FALSE(restored.world.entities.exists(body));
+    CHECK(restored.world.entities.nextId()==w.entities.nextId());
+    const auto rebound=world::materializeVehicle(restored.world,vehicle);
+    CHECK(rebound.value()>body.value());
+    CHECK(restored.world.vehicles.get(vehicle).activeEntity==rebound);
+    CHECK(restored.world.health.get(rebound).current==12);
+    CHECK(restored.world.spatial.queryCell({-1,4})==std::vector<EntityId>{rebound});
 }
 TEST_CASE("every runtime RNG stream preserves its exact future") {
     auto state=emptyState();

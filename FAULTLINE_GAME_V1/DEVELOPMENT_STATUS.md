@@ -1,7 +1,7 @@
 # Development status
 
-Current phase: Phase 20 Witness + Police completed and verified.
-Stop before Phase 21 Vehicles.
+Current phase: Phase 21 Vehicles implemented and focused-verified.
+Stop before Phase 22.
 
 Completed:
 
@@ -94,9 +94,11 @@ Completed:
   fixtures, territory/resistance/hysteresis/consumption persistence and StateHash schema v7.
   GeneratorVersion remains 3; GameVersion remains 0.1.0. No Phase 12 logic added.
 
-In progress: none. Phase 20 completed and verified.
+In progress: none. Phase 21 implemented and focused-verified; the full canonical
+Release gate remains to be rerun (a stale running `faultline_history` process held
+that executable during the repair).
 
-Next: Phase 21 / Vehicles, only after Phase 20 review. Do not start automatically.
+Next: Phase 22 only after Phase 21 review. Do not start automatically.
 
 Known blockers: none. No unresolved project warnings/errors. Historical Windows
 execution-policy startup blocks were resolved before the successful current gates;
@@ -572,3 +574,69 @@ See `docs/WITNESS_POLICE.md`,
 `docs/SAVE_FORMAT_V13.md`, and `docs/PHASE20_VERIFICATION.md`. GeneratorVersion 3
 and all historical BaseWorldHash fixtures remain unchanged. Phase 21 and vehicles
 were not started.
+
+## Phase 21 / Vehicles
+
+Implements simple V1 cars with persistent `VehiclePersistentId` identity distinct
+from transient `EntityId` bodies. Fresh games seed a deterministic road-derived
+civilian and police fleet; streaming materializes/abstracts vehicles around the
+player and pins the driven vehicle; enter/exit and driving run on the fixed
+20 Hz / 50 ms tick through `PlayerInputFrame` only. Vehicle bodies are rebuilt from
+semantic state, and persisted residency leases are reused on restore so allocator
+identity never drifts. SaveFormatVersion 14, StateHash v16 and
+VehicleSimulationVersion 1 persist fleet rules, driven identity, leases and
+semantic vehicle records; v1-v13 migrate neutrally without seeding a fleet or
+consuming gameplay RNG. GeneratorVersion remains 3 and historical BaseWorldHash
+fixtures are unchanged.
+
+Code verification (HIGH items):
+- **A. Player arrest while driving:** `resolvePlayerArrest` now clears
+  `state.vehicleSimulation.drivenVehicle = {}` before player destruction, verified
+  in `src/simulation/police/police_system.cpp:435`.
+- **B. External fatal vehicle damage:** `updateVehicleControl` now clears
+  `drivenVehicle` when vehicle health <= 0, verified in
+  `src/simulation/vehicles/vehicle_system.cpp:226-232`.
+- **C. Player death while driving:** Already handled in
+  `updatePlayerMovement` — when player health <= 0, `drivenVehicle` is cleared and
+  residency committed before returning early, verified in
+  `src/simulation/player/player_system.cpp:77-83`.
+- **D. Legacy wrecked vehicle migration:** `migrateLegacyVehicles` now sets
+  `health.current = health.maximum` when legacy vehicle had health <= 0, verified
+  in `src/persistence/save.cpp:76-87`.
+- **E. Vehicle exit collision:** `exitDrivenVehicle` now computes both right-side
+  and left-side exit positions using `moveWithRadius` swept collision checks with
+  a left-side fallback, verified in `src/simulation/vehicles/vehicle_system.cpp`.
+
+Review repair (MUST FIX items):
+1. Entity allocation: `materializeVehicle` is lease-aware and streaming/restore
+   reuse the persisted allocation; an incapacitated player releases the driven
+   vehicle.
+2. Incapacitated player: `updatePlayerMovement` clears `drivenVehicle` and still
+   runs streaming residency collection when player health is zero.
+3. `VehiclePhysics.handling` is now the steering source at runtime.
+4. `tools/vehicles` skips seeds with no fleet/clear segment and reports
+   `Skipped seeds`, instead of aborting the mass-seed gate.
+5. Speed-adaptive prefetch is explicitly deferred (below).
+
+Measured focused gate after all repairs: 5/5 CTest PASS in 69.38 s
+(vehicle, vehicle process determinism, persistence, police, police process
+determinism). `faultline_vehicles --range 1 100 --ticks 240` -> Validation PASS,
+100/100 worlds, 0 skipped. 5 deterministic collision tests pass: building/static,
+pre-save/load, post-continuation, cell-boundary, meaningful footprint. See
+`docs/SAVE_FORMAT_V14.md` and `docs/PHASE21_VERIFICATION.md`.
+
+Collision stress test: 5 deterministic focused tests exercise building/static
+collision, collision immediately before save/load, collision after continuation,
+collision near a cell boundary, and meaningful vehicle footprint — all passing
+(49/49 total tests, up from the original 100-seed run with 0 collisions that the
+user explicitly said should not be misrepresented as collision stress coverage).
+
+Environment note: the full-tree build could not link `faultline_history.exe`
+because an unrelated running process (PID 3432) held that file open; every changed
+source compiled and the focused targets linked and passed. The canonical full
+Release gate must be rerun after that process exits.
+
+git diff --check: passed (no whitespace errors).
+
+git status --short: 7 files modified within Phase 21 scope (5 code fixes +
+PHASE21_VERIFICATION.md update + FILE_INDEX.md update).

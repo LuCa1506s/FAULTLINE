@@ -19,9 +19,18 @@ void destroyEntity(WorldState& world, EntityId id) {
         if (world.health.contains(id)) npc.health = world.health.get(id);
         npc.activeEntity = {};
     }
-    if (world.vehicleLinks.contains(id)) world.vehicles.get(world.vehicleLinks.get(id).vehicle).activeEntity = {};
+    if (world.vehicleLinks.contains(id)) {
+        auto& vehicle = world.vehicles.get(world.vehicleLinks.get(id).vehicle);
+        if (world.transforms.contains(id))
+            vehicle.position = normalize(world.transforms.get(id).position, world.spatial.cellSize());
+        if (world.vehicleBodies.contains(id)) vehicle.yaw = world.vehicleBodies.get(id).yaw;
+        if (world.vehiclePhysics.contains(id)) vehicle.speed = world.vehiclePhysics.get(id).speed;
+        if (world.health.contains(id)) vehicle.condition.health = world.health.get(id);
+        vehicle.activeEntity = {};
+    }
     world.npcLinks.remove(id); world.vehicleLinks.remove(id);
     world.transforms.remove(id); world.health.remove(id); world.characterBodies.remove(id);
+    world.vehicleBodies.remove(id); world.vehiclePhysics.remove(id);
     world.spatial.remove(id); world.entities.destroy(id);
 }
 WorldState persistentSnapshot(const WorldState& world) {
@@ -29,6 +38,10 @@ WorldState persistentSnapshot(const WorldState& world) {
     for (const auto& [id, npc] : world.npcs.entries()) {
         (void)id;
         if (npc.activeEntity) destroyEntity(result, npc.activeEntity);
+    }
+    for (const auto& [id, vehicle] : world.vehicles.entries()) {
+        (void)id;
+        if (vehicle.activeEntity) destroyEntity(result, vehicle.activeEntity);
     }
     result.spatial.clear();
     // Relationship vectors are semantic sets of directed edges, not insertion histories.
@@ -68,6 +81,17 @@ void validateWorld(const WorldState& world) {
     };
     for (const auto& [id, body] : world.characterBodies.entries())
         core::require(world.entities.exists(id) && validCharacterBody(body), "Invalid character body");
+    const auto validVehicleBody = [](const VehicleBody& body) {
+        return std::isfinite(body.yaw) && body.yaw >= -3.14159265F && body.yaw <= 3.14159265F &&
+               std::isfinite(body.halfLength) && body.halfLength > 0 &&
+               std::isfinite(body.halfWidth) && body.halfWidth > 0;
+    };
+    for (const auto& [id, body] : world.vehicleBodies.entries())
+        core::require(world.entities.exists(id) && validVehicleBody(body), "Invalid vehicle body");
+    for (const auto& [id, physics] : world.vehiclePhysics.entries())
+        core::require(world.entities.exists(id) && std::isfinite(physics.speed) &&
+            std::isfinite(physics.acceleration) && physics.acceleration > 0 &&
+            std::isfinite(physics.handling) && physics.handling > 0, "Invalid vehicle physics");
     for (const auto& [id, npc] : world.npcs.entries()) {
         core::require(npc.identity.age <= AgeBand::OlderAdult, "Invalid NPC age band");
         core::require(npc.lifecycle <= NpcLifecycle::Dead, "Invalid NPC lifecycle");
@@ -103,14 +127,71 @@ void validateWorld(const WorldState& world) {
         core::require(world.npcs.get(link.npc).activeEntity == entity, "Duplicate or stale NPC body");
         core::require(!world.vehicleLinks.contains(entity), "Entity represents both NPC and vehicle");
     }
-    for (const auto& [id, vehicle] : world.vehicles.entries()) if (vehicle.activeEntity) {
-        core::require(world.entities.exists(vehicle.activeEntity) && world.vehicleLinks.contains(vehicle.activeEntity),
-                      "Vehicle entity missing");
-        core::require(world.vehicleLinks.get(vehicle.activeEntity).vehicle == id, "Vehicle back-link mismatch");
+    for (const auto& [id, vehicle] : world.vehicles.entries()) {
+        core::require(validVehicleCategory(vehicle.category) && validVehicleArchetype(vehicle.archetype),
+                      "Invalid vehicle category/archetype");
+        const auto& definition = vehicleDefinition(vehicle.archetype);
+        core::require(vehicle.category == definition.category, "Vehicle category/archetype mismatch");
+        core::require(validVehicleOwnerKind(vehicle.ownership.kind), "Invalid vehicle owner kind");
+        core::require(vehicle.passengerCapacity == definition.passengerCapacity,
+                      "Vehicle passenger capacity mismatch");
+        core::require(std::isfinite(vehicle.yaw) && vehicle.yaw >= -3.14159265F && vehicle.yaw <= 3.14159265F &&
+            std::isfinite(vehicle.speed) && std::abs(vehicle.speed) <= definition.maxSpeed + 1e-3F,
+            "Invalid vehicle motion state");
+        core::require(normalize(vehicle.position, world.spatial.cellSize()) == vehicle.position,
+                      "Unnormalized vehicle position");
+        core::require(validHealth(vehicle.condition.health) &&
+            vehicle.condition.health.maximum == definition.maxHealth, "Invalid vehicle condition");
+        switch (vehicle.ownership.kind) {
+        case VehicleOwnerKind::Unowned:
+            core::require(!vehicle.ownership.npc && !vehicle.ownership.faction, "Unowned vehicle references an owner");
+            break;
+        case VehicleOwnerKind::Npc:
+            core::require(vehicle.ownership.npc && world.npcs.exists(vehicle.ownership.npc) &&
+                !vehicle.ownership.faction, "Vehicle NPC owner missing/incoherent");
+            break;
+        case VehicleOwnerKind::Faction:
+            core::require(vehicle.ownership.faction && world.factions.exists(vehicle.ownership.faction) &&
+                !vehicle.ownership.npc, "Vehicle faction owner missing/incoherent");
+            break;
+        case VehicleOwnerKind::Police:
+            core::require(!vehicle.ownership.npc && (!vehicle.ownership.faction ||
+                world.factions.exists(vehicle.ownership.faction)), "Vehicle police owner missing/incoherent");
+            break;
+        }
+        core::require(!vehicle.location.district || world.districts.exists(vehicle.location.district),
+                      "Vehicle district missing");
+        core::require(!vehicle.location.territory || (world.territories.exists(vehicle.location.territory) &&
+            world.territories.get(vehicle.location.territory).district == vehicle.location.district),
+            "Vehicle territory missing/incoherent");
+        if (vehicle.location.building) {
+            core::require(world.base.has_value(), "Vehicle building requires generated geography");
+            const auto& buildings = world.base->buildings;
+            const auto found = std::find_if(buildings.begin(), buildings.end(),
+                [&](const auto& b) { return b.id == vehicle.location.building; });
+            core::require(found != buildings.end() && found->district == vehicle.location.district,
+                          "Vehicle building missing/incoherent");
+        }
+        if (vehicle.activeEntity) {
+            const auto entity = vehicle.activeEntity;
+            core::require(vehicle.condition.health.current > 0, "Wrecked vehicle has a body");
+            core::require(world.entities.exists(entity) && world.vehicleLinks.contains(entity),
+                          "Vehicle entity missing");
+            core::require(world.vehicleLinks.get(entity).vehicle == id, "Vehicle back-link mismatch");
+            core::require(world.transforms.contains(entity) && world.health.contains(entity) &&
+                world.vehicleBodies.contains(entity) && world.vehiclePhysics.contains(entity),
+                "Vehicle physical components missing");
+            core::require(normalize(world.transforms.get(entity).position, world.spatial.cellSize()) ==
+                world.transforms.get(entity).position, "Unnormalized vehicle transform");
+            core::require(world.vehicleBodies.get(entity).halfLength == definition.halfLength &&
+                world.vehicleBodies.get(entity).halfWidth == definition.halfWidth,
+                "Vehicle body dimensions mismatch");
+        }
     }
     for (const auto& [entity, link] : world.vehicleLinks.entries()) {
         core::require(world.entities.exists(entity) && world.vehicles.exists(link.vehicle), "Orphan vehicle link");
         core::require(world.vehicles.get(link.vehicle).activeEntity == entity, "Duplicate vehicle body");
+        core::require(!world.npcLinks.contains(entity), "Entity represents both NPC and vehicle");
     }
     for (const auto& [id, faction] : world.factions.entries()) {
         core::require(faction.lifecycle <= FactionLifecycle::Reformed, "Invalid faction lifecycle");
@@ -194,7 +275,18 @@ void appendStateHash(core::StateHash& hash, const WorldState& world) {
     appendStore(hash, world.territories, [&](const auto& territory) {
         hash.u64(territory.district.value()); hash.u64(territory.owner.value()); hash.u64(territory.residentMembers);
     });
-    appendStore(hash, world.vehicles, [&](const auto& vehicle) { hash.u64(vehicle.activeEntity.value()); });
+    appendStore(hash, world.vehicles, [&](const auto& vehicle) {
+        hash.u64(vehicle.activeEntity.value());
+        hash.u64(static_cast<std::uint64_t>(vehicle.category));
+        hash.u64(static_cast<std::uint64_t>(vehicle.archetype));
+        hash.u64(static_cast<std::uint64_t>(vehicle.ownership.kind));
+        hash.u64(vehicle.ownership.npc.value()); hash.u64(vehicle.ownership.faction.value());
+        appendFloat(vehicle.condition.health.current); appendFloat(vehicle.condition.health.maximum);
+        hash.u64(vehicle.location.district.value()); hash.u64(vehicle.location.territory.value());
+        hash.u64(vehicle.location.building.value());
+        appendPosition(vehicle.position); appendFloat(vehicle.yaw); appendFloat(vehicle.speed);
+        hash.u64(vehicle.passengerCapacity);
+    });
     appendStore(hash, world.missions, [&](const auto& mission) {
         hash.u64(static_cast<std::uint64_t>(mission.status)); hash.u64(mission.issuer.value());
     });

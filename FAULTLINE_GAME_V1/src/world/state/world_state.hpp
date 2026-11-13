@@ -3,13 +3,13 @@
 #include "core/rng/stable_hash.hpp"
 #include "world/spatial/spatial_grid.hpp"
 #include "world/generation/world_generator.hpp"
+#include "world/state/vehicle_types.hpp"
 #include <optional>
 #include <variant>
 
 namespace faultline::world {
 enum class MissionResolution : std::uint8_t { Available, Accepted, Active, Completed, Failed, Expired, Invalidated, ResolvedByNpc };
 struct Transform { WorldPosition position; };
-struct VehicleState { EntityId activeEntity; };
 struct MissionState { MissionResolution status{}; NpcId issuer; };
 struct DistrictState { MacroZoneId macroZone; };
 struct NpcLink { NpcId npc; };
@@ -28,6 +28,8 @@ struct WorldState {
     ComponentStore<Transform> transforms;
     ComponentStore<Health> health;
     ComponentStore<CharacterBody> characterBodies;
+    ComponentStore<VehicleBody> vehicleBodies;
+    ComponentStore<VehiclePhysics> vehiclePhysics;
     SpatialGrid spatial;
     NpcStore npcs;
     FactionStore factions;
@@ -39,8 +41,9 @@ struct WorldState {
     std::vector<NpcRelationship> npcRelationships;
 };
 void destroyEntity(WorldState& world, EntityId id);
-// Completed-tick semantic view: synchronize NPC bodies, then discard their representation.
-// Allocator high-water marks survive abstraction. Other data-only components remain authoritative.
+// Completed-tick semantic view: synchronize NPC/vehicle bodies, then discard their
+// representation. Allocator high-water marks survive abstraction. Other data-only
+// components remain authoritative.
 [[nodiscard]] WorldState persistentSnapshot(const WorldState& world);
 void validateWorld(const WorldState& world);
 void appendStateHash(core::StateHash& hash, const WorldState& world);

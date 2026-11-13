@@ -11,6 +11,7 @@
 #include "simulation/player/player_system.hpp"
 #include "simulation/combat/combat_system.hpp"
 #include "simulation/police/police_system.hpp"
+#include "simulation/vehicles/vehicle_system.hpp"
 #include "world/spatial/streaming.hpp"
 #include <algorithm>
 #include <cmath>
@@ -48,6 +49,10 @@ GameState::GameState(WorldSeed seed, world::WorldGenerationConfig config, Genera
     simulation::initializePlayerState(*this);
     simulation::initializeCombatSimulation(*this);
     simulation::initializePoliceSimulation(*this);
+    simulation::initializeVehicleSimulation(*this);
+    // Only fresh games own a generated fleet. Restored/legacy saves never invent
+    // vehicles and never consume the vehicle spawn RNG stream.
+    simulation::seedVehicleFleet(*this);
 }
 GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored)
     : metadata(meta), clock(time), randomness(std::move(random)), world(std::move(restored)) {
@@ -60,6 +65,7 @@ GameState::GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRand
     simulation::initializePlayerState(*this);
     simulation::initializeCombatSimulation(*this);
     simulation::initializePoliceSimulation(*this);
+    simulation::initializeVehicleSimulation(*this);
 }
 void validateState(const GameState& state) {
     world::validateWorld(state.world);
@@ -74,6 +80,7 @@ void validateState(const GameState& state) {
     simulation::validatePlayerState(state);
     simulation::validateCombatSimulation(state);
     simulation::validatePoliceSimulation(state);
+    simulation::validateVehicleSimulation(state);
     if (state.world.base) core::require(state.world.base->metadata.seed == state.metadata.seed &&
         state.world.base->metadata.generatorVersion == state.metadata.generatorVersion, "Base world metadata mismatch");
     core::require(state.metadata.generatorVersion.value >= 1 && state.metadata.generatorVersion.value <= 3, "Unsupported generator version");
@@ -93,7 +100,7 @@ RuntimeRandomState::RuntimeRandomState(WorldSeed seed) : streams{
 
 std::uint64_t stateHash(const GameState& state) {
     core::StateHash hash;
-    hash.string("FAULTLINE.state.v15"); hash.u64(state.metadata.seed.value);
+    hash.string("FAULTLINE.state.v16"); hash.u64(state.metadata.seed.value);
     hash.u64(state.metadata.generatorVersion.value); hash.u64(state.clock.tick());
     hash.u64(state.clock.gameTime().milliseconds);
     for (const auto& stream : state.randomness.streams)
@@ -110,6 +117,7 @@ std::uint64_t stateHash(const GameState& state) {
     simulation::appendPlayerStateHash(hash,state);
     simulation::appendCombatSimulationHash(hash,state);
     simulation::appendPoliceSimulationHash(hash,state);
+    simulation::appendVehicleSimulationHash(hash,state);
     return hash.value();
 }
 void CommandQueue::submit(std::uint64_t targetTick, CommandSource source) {
@@ -140,6 +148,7 @@ void Simulation::tick(GameState& state, const TickInput& input) {
     // Restore logical streaming residency before NPC rules inspect materialization.
     // Reusing an existing allocation lease must not consume another EntityId.
     simulation::restorePlayerResidency(state);
+    simulation::restoreVehicleResidency(state);
     events_.clear(); structuralChanges_.clear(); factionEvents_.clear(); npcEvents_.clear(); territoryEvents_.clear(); missionEvents_.clear(); policeEvents_.clear();
     SimulationContext context{input.tick, events_, structuralChanges_, state.randomness};
     // Ingest diagnostic commands. Domain systems enter in the canonical pipeline order.

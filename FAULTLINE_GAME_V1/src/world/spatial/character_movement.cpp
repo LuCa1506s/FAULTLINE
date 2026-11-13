@@ -35,14 +35,17 @@ bool hasStaticLineOfSight(const WorldState& world, WorldPosition from, WorldPosi
         if (segmentRect(a,b,water.boundary)) return false;
     return true;
 }
-WorldPosition moveCharacter(const WorldState& world, WorldPosition origin, float dx, float dz) {
+MovementResult moveWithRadius(const WorldState& world, WorldPosition origin, float dx, float dz, double radius) {
+    core::require(std::isfinite(dx) && std::isfinite(dz) && std::isfinite(radius) && radius >= 0,
+                  "Invalid movement input");
     const auto start=toGlobal(origin,world.spatial.cellSize());
     auto end=start; end.x+=dx; end.z+=dz;
+    const auto desired=end;
     if (world.base) {
         const auto& base=*world.base;
         const auto obstacle=[&](Rect r) {
-            const double x0=r.x-characterCollisionRadius, x1=static_cast<double>(right(r))+characterCollisionRadius;
-            const double z0=r.z-characterCollisionRadius, z1=static_cast<double>(bottom(r))+characterCollisionRadius;
+            const double x0=r.x-radius, x1=static_cast<double>(right(r))+radius;
+            const double z0=r.z-radius, z1=static_cast<double>(bottom(r))+radius;
             end.x=clipAxis(start.x,end.x,start.z,x0,x1,z0,z1);
             end.z=clipAxis(start.z,end.z,end.x,z0,z1,x0,x1);
         };
@@ -56,6 +59,10 @@ WorldPosition moveCharacter(const WorldState& world, WorldPosition origin, float
     // Preserve cell/local arithmetic, including its established rounding contract.
     origin.local.x+=static_cast<float>(end.x-start.x);
     origin.local.z+=static_cast<float>(end.z-start.z);
-    return normalize(origin,world.spatial.cellSize());
+    const bool collided=std::abs(end.x-desired.x)>1e-9 || std::abs(end.z-desired.z)>1e-9;
+    return {normalize(origin,world.spatial.cellSize()),collided};
+}
+WorldPosition moveCharacter(const WorldState& world, WorldPosition origin, float dx, float dz) {
+    return moveWithRadius(world,origin,dx,dz,characterCollisionRadius).position;
 }
 }

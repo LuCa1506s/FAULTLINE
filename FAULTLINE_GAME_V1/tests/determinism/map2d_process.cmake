@@ -53,15 +53,15 @@ if(NOT runtime_a_SVG MATCHES "id=\"player-marker\" data-entity=\"[0-9]+\"" OR
   message(FATAL_ERROR "Runtime SVG lacks source-addressable player/NPC markers")
 endif()
 
-execute_process(COMMAND "${COMBAT}" --seed 12345 --rounds 6 --save "${CMAKE_CURRENT_BINARY_DIR}/map2d_v13.flsave"
+execute_process(COMMAND "${COMBAT}" --seed 12345 --rounds 6 --save "${CMAKE_CURRENT_BINARY_DIR}/map2d_v14.flsave"
   RESULT_VARIABLE combat_result OUTPUT_VARIABLE combat_out ERROR_VARIABLE combat_err)
 if(NOT combat_result EQUAL 0)
-  message(FATAL_ERROR "Could not create current v13 save: ${combat_out} ${combat_err}")
+  message(FATAL_ERROR "Could not create current v14 save: ${combat_out} ${combat_err}")
 endif()
-run_map(save_a --load "${CMAKE_CURRENT_BINARY_DIR}/map2d_v13.flsave" --labels)
-run_map(save_b --load "${CMAKE_CURRENT_BINARY_DIR}/map2d_v13.flsave" --labels)
-if(NOT save_a_SVG STREQUAL save_b_SVG OR NOT save_a_OUT MATCHES "Mode: Loaded save" OR NOT save_a_OUT MATCHES "Player: 1" OR NOT save_a_OUT MATCHES "Active NPCs: [1-9]" OR NOT save_a_SVG MATCHES "SaveFormatVersion: 13")
-  message(FATAL_ERROR "Current v13 load rendering failed")
+run_map(save_a --load "${CMAKE_CURRENT_BINARY_DIR}/map2d_v14.flsave" --labels)
+run_map(save_b --load "${CMAKE_CURRENT_BINARY_DIR}/map2d_v14.flsave" --labels)
+if(NOT save_a_SVG STREQUAL save_b_SVG OR NOT save_a_OUT MATCHES "Mode: Loaded save" OR NOT save_a_OUT MATCHES "Player: 1" OR NOT save_a_OUT MATCHES "Active NPCs: [1-9]" OR NOT save_a_SVG MATCHES "SaveFormatVersion: 14")
+  message(FATAL_ERROR "Current v14 load rendering failed")
 endif()
 run_map(legacy_v12 --load "${V12}")
 if(NOT legacy_v12_SVG MATCHES "SaveFormatVersion: 12" OR NOT legacy_v12_OUT MATCHES "Validation: PASS")
@@ -85,4 +85,4 @@ expect_bad(--seed 1 --width 12 --output x.svg)
 expect_bad(--seed 1)
 expect_bad(--output x.svg)
 
-message(STATUS "Map2D actual SVG audit: PASS (raw/runtime/v13 and authentic v12 load, byte-identical, emitted counts verified)")
+message(STATUS "Map2D actual SVG audit: PASS (raw/runtime/v14 and authentic v12 load, byte-identical, emitted counts verified)")

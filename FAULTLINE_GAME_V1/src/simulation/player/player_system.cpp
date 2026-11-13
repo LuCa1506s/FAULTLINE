@@ -2,12 +2,31 @@
 #include "world/spatial/streaming.hpp"
 #include "world/spatial/character_movement.hpp"
 #include "simulation/npc/character_ai.hpp"
+#include "simulation/vehicles/vehicle_system.hpp"
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include <vector>
 
 namespace faultline::simulation {
 using namespace world;
+
+namespace {
+void commitResidency(GameState& state, WorldStreamingSystem& streaming, WorldPosition focus) {
+    std::optional<VehiclePersistentId> pinned;
+    if (state.vehicleSimulation.drivenVehicle) pinned = state.vehicleSimulation.drivenVehicle;
+    std::vector<VehicleEntityLease> leases;
+    leases.reserve(state.vehicleSimulation.residents.size());
+    for (const auto& resident : state.vehicleSimulation.residents)
+        leases.push_back({resident.vehicle, resident.entity});
+    // Persisted leases must be reused, not reallocated, when a body is restored.
+    streaming.commit(state.world, focus, pinned, leases);
+    state.player.residents.clear();
+    for (const auto& [id, npc] : state.world.npcs.entries())
+        if (npc.activeEntity) state.player.residents.push_back({id, npc.activeEntity});
+    collectVehicleResidency(state);
+}
+}
 
 void initializePlayerState(GameState& state) {
     state.player = PlayerState{};
@@ -53,32 +72,40 @@ EntityId createPlayerEntity(GameState& state, WorldPosition spawnPosition) {
 void updatePlayerMovement(GameState& state, const PlayerInputFrame& input, WorldStreamingSystem& streaming) {
     const auto entity = state.player.controlledEntity;
     if (!entity || !state.world.entities.exists(entity)) return;
-    if (state.world.health.get(entity).current<=0) return;
     auto& transform = state.world.transforms.get(entity);
     auto& body = state.world.characterBodies.get(entity);
-    if (std::isfinite(input.aimX) && std::isfinite(input.aimZ) &&
-        (std::fabs(input.aimX) > 0 || std::fabs(input.aimZ) > 0)) {
-        body.yaw = std::atan2(input.aimX, input.aimZ);
-        state.player.yaw = body.yaw;
+    if (state.world.health.get(entity).current<=0) {
+        // A dead/incapacitated player cannot drive. Release the lease so streaming
+        // reclaims the now-unpinned body instead of leaving a frozen driven vehicle.
+        state.vehicleSimulation.drivenVehicle = {};
+        commitResidency(state, streaming, transform.position);
+        return;
     }
-    const double magnitude = std::hypot(static_cast<double>(input.moveX), static_cast<double>(input.moveZ));
-    if (magnitude > 0 && std::isfinite(magnitude)) {
-        if (std::fabs(input.aimX) <= 0 && std::fabs(input.aimZ) <= 0) {
-            body.yaw = std::atan2(input.moveX, input.moveZ);
+    // Vehicle control consumes the frame while driving or entering. On foot the
+    // ordinary kinematic path remains byte-for-byte compatible with prior phases.
+    const bool vehicleControlled = updateVehicleControl(state, input);
+    if (!vehicleControlled) {
+        if (std::isfinite(input.aimX) && std::isfinite(input.aimZ) &&
+            (std::fabs(input.aimX) > 0 || std::fabs(input.aimZ) > 0)) {
+            body.yaw = std::atan2(input.aimX, input.aimZ);
             state.player.yaw = body.yaw;
         }
+        const double magnitude = std::hypot(static_cast<double>(input.moveX), static_cast<double>(input.moveZ));
+        if (magnitude > 0 && std::isfinite(magnitude)) {
+            if (std::fabs(input.aimX) <= 0 && std::fabs(input.aimZ) <= 0) {
+                body.yaw = std::atan2(input.moveX, input.moveZ);
+                state.player.yaw = body.yaw;
+            }
+        }
+        const float nx = magnitude>0 ? static_cast<float>(input.moveX / std::max(1.0,magnitude)) : 0;
+        const float nz = magnitude>0 ? static_cast<float>(input.moveZ / std::max(1.0,magnitude)) : 0;
+        const float tickSeconds = static_cast<float>(core::SimulationClock::tickDuration.count()) / 1000.0F;
+        const float shiftX = nx * body.movementSpeed * tickSeconds;
+        const float shiftZ = nz * body.movementSpeed * tickSeconds;
+        transform.position = moveCharacter(state.world,transform.position,shiftX,shiftZ);
+        state.world.spatial.upsert(entity, transform.position);
     }
-    const float nx = magnitude>0 ? static_cast<float>(input.moveX / std::max(1.0,magnitude)) : 0;
-    const float nz = magnitude>0 ? static_cast<float>(input.moveZ / std::max(1.0,magnitude)) : 0;
-    const float tickSeconds = static_cast<float>(core::SimulationClock::tickDuration.count()) / 1000.0F;
-    const float shiftX = nx * body.movementSpeed * tickSeconds;
-    const float shiftZ = nz * body.movementSpeed * tickSeconds;
-    transform.position = moveCharacter(state.world,transform.position,shiftX,shiftZ);
-    state.world.spatial.upsert(entity, transform.position);
-    streaming.commit(state.world, transform.position);
-    state.player.residents.clear();
-    for (const auto& [id,n] : state.world.npcs.entries())
-        if (n.activeEntity) state.player.residents.push_back({id,n.activeEntity});
+    commitResidency(state, streaming, transform.position);
 }
 
 void validatePlayerState(const GameState& state) {

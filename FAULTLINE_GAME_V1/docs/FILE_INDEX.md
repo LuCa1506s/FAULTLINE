@@ -380,3 +380,32 @@ and police loadouts; Character AI police intents; runtime GameState/tick order/e
 access/StateHash; persistence reader/writer/version; Map2D v12/v13 migration process
 gate; fixture provenance; README, DEVELOPMENT_STATUS and DETERMINISM. Map2D itself
 remains read-only and gained no Phase 20 overlay.
+
+## Phase 21 / Vehicles
+
+- `src/world/state/vehicle_types.hpp` - vehicle category/archetype/ownership/condition,
+  transient body and physics components, archetype definitions and `VehicleState`.
+- `src/simulation/vehicles/vehicle_state.hpp` - VehicleRules, residency leases,
+  diagnostics and `VehicleSimulationState`.
+- `src/simulation/vehicles/vehicle_system.hpp/.cpp` - deterministic road-derived fleet
+  seeding, residency restore/collect, enter/exit and driving, validation and hashing.
+- `src/persistence/schema_v14.hpp` - explicit VehicleSimulation v14 wire fields.
+- `tools/vehicles/main.cpp` - headless drive/save/continuation/streaming diagnostics and
+  multi-seed stress; seeds without a usable scenario are skipped and counted.
+- `tests/vehicle_tests.cpp` - focused fleet identity, materialize/abstractify, driving,
+  save/load continuation, police-car and authentic v12 migration coverage.
+- `tests/determinism/vehicle_process.cmake` - independent-process stdout and save
+  SHA-256 equality.
+- `docs/SAVE_FORMAT_V14.md` - appended wire schema and v1-v13 migration.
+- `docs/PHASE21_VERIFICATION.md` - commands, measured results, repair items and
+  explicit speed-adaptive-prefetch deferral.
+
+Modified: CMakeLists; runtime game_state/game (state, initialization, tick restore,
+validation and StateHash v16); world `world_state` (vehicle components, snapshot,
+validation, hash) and `streaming` (vehicle materialize/abstract plus lease-aware
+commit); `character_movement` (`moveWithRadius`); player movement (vehicle control,
+lease passing, incapacitated release); persistence save reader/writer/version;
+persistence and Map2D process gates; DEVELOPMENT_STATUS and this index. Vehicle
+bodies are transient; persistent identity is the `VehiclePersistentId` store key.
+GeneratorVersion 3 and all historical BaseWorldHash fixtures are unchanged, and no
+parent canonical document was modified.

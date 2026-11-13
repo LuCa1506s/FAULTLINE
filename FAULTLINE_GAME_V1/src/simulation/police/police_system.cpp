@@ -418,6 +418,9 @@ bool arrestPending(const GameState& state) { return state.police.pendingArrest; 
 
 void resolvePlayerArrest(GameState& state) {
     core::require(state.police.pendingArrest && state.player.controlledEntity,"No pending player arrest");
+    // Clear driven vehicle before player destruction so the headless advance does not
+    // re-synch the player into a vehicle that remains pinned from the prior state.
+    state.vehicleSimulation.drivenVehicle = {};
     auto release=state.police.arrestPosition;
     if (state.world.base) {
         const auto location=locationAt(state,release);

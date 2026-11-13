@@ -15,6 +15,7 @@
 #include "simulation/player/player_state.hpp"
 #include "simulation/combat/combat_state.hpp"
 #include "simulation/police/police_state.hpp"
+#include "simulation/vehicles/vehicle_state.hpp"
 
 namespace faultline {
 enum class RandomDomain : std::size_t { Combat, Npc, Missions, Factions, Market, Police, Story, Count };
@@ -39,6 +40,7 @@ struct GameState {
     simulation::PlayerState player;
     simulation::CombatSimulationState combat;
     simulation::PoliceSimulationState police;
+    simulation::VehicleSimulationState vehicleSimulation;
     explicit GameState(WorldSeed seed, world::WorldGenerationConfig config = {}, GeneratorVersion version = currentGeneratorVersion);
     // Assemble restored data without rerunning world generation or resetting RNG/allocators.
     GameState(WorldMetadata meta, core::SimulationClock time, RuntimeRandomState random, world::WorldState restored);
