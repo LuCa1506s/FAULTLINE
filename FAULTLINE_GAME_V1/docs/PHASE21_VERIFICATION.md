@@ -154,3 +154,24 @@ player `player_system.cpp`; persistence `save.hpp/.cpp`; persistence and Map2D
 process tests; `DEVELOPMENT_STATUS.md`, `docs/FILE_INDEX.md`.
 
 No parent canonical specification was modified.
+
+## Follow-up: clean-clone Release verification
+
+Date: 2026-11-13.
+
+- Repository: https://github.com/LuCa1506s/FAULTLINE
+- Tested commit: `96fcb11`
+- Environment: Windows, Surface Laptop 4
+- Compiler: GCC 16.2.0 (w64devkit)
+- Configuration: Release, Ninja
+- Fresh clone and portable toolchain bootstrap: PASS
+- Complete build: 94/94 build steps completed
+- CTest: 42/42 passed, zero failures
+- Stress tests: 14/14 passed
+- Total CTest wall time: 521.20 seconds
+
+The previous Windows executable-lock blocker is resolved.
+All targets, including faultline_history, compiled and linked.
+
+This establishes the full Windows Release gate at the tested commit.
+Linux and hosted CI verification are not yet claimed.

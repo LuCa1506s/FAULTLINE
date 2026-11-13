@@ -2,9 +2,9 @@
 
 **Build a world that remembers.**
 
-> **Current checkpoint:** Phase 21 — Vehicles implemented and focused-verified.
+> **Current checkpoint:** Phase 21 — Vehicles implemented and full Release verified on Windows.
 > GameVersion `0.1.0` · GeneratorVersion `3` · SaveFormatVersion `14` · StateHash `FAULTLINE.state.v16`.
-> The full canonical Release build/test gate remains pending. Phase 22 has not started at this checkpoint.
+> The full canonical Release build/test gate passed on Windows from a clean GitHub clone (42/42 CTest tests). Phase 22 has not started at this checkpoint.
 
 FAULTLINE is a purpose-built C++20 engine for a procedural crime sandbox with a persistent, deterministic world. The engine separates authoritative simulation from rendering and platform input, allowing worlds, actors, factions, missions and vehicles to be exercised through headless tools and automated tests.
 
@@ -32,7 +32,7 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-The commands use standard CMake tooling; a fresh clone and full cross-platform test run have not yet been verified at this checkpoint. Multi-configuration generators (such as Visual Studio) may place executables under `build/Debug/` or `build/Release/` instead of `build/`.
+The commands use standard CMake tooling. A fresh GitHub clone passed the full Release gate on Windows; Linux verification is pending. Multi-configuration generators (such as Visual Studio) may place executables under `build/Debug/` or `build/Release/` instead of `build/`.
 
 ### Optional portable Windows toolchain
 
@@ -187,7 +187,7 @@ The [Phase 21 report](docs/PHASE21_VERIFICATION.md) records the following result
 | Additional deterministic collision cases | 5 passed |
 | Vehicle mass-run BatchHash | `51e56c4d84beb3ec` |
 
-These results are historical recorded evidence, not a fresh independent test run of the current GitHub commit. The report states that the full-tree build could not finish linking `faultline_history.exe` because another Windows process held the executable open. The full canonical Release gate remains pending; no claim of full-suite or cross-platform verification is made here.
+These results are historical recorded evidence, not a fresh independent test run of the current GitHub commit. The report states that the full-tree build could not finish linking `faultline_history.exe` because another Windows process held the executable open. A subsequent clean-clone Release run on Windows passed all 42 CTest tests, including 14 stress tests. Cross-platform verification remains pending.
 
 ## Persistence and determinism
 
@@ -209,7 +209,7 @@ Historical world-generation hash contracts remain unchanged: v1 `2938f0ca42162bc
 - Streaming uses fixed 512 m activation and 640 m deactivation radii; the driven vehicle is pinned. Velocity-based prefetch is deferred.
 - No inter-district vehicle travel/arrival scheduling, traffic density simulation, motorcycle/boat/aircraft gameplay, advanced tuning or police response vehicles is implemented in this checkpoint.
 - No production renderer or complete playable game is claimed. Map2D is a debug tool.
-- The full Release gate and independent clean-clone validation remain open. Phase 22 is outside this checkpoint.
+- The Windows clean-clone Release gate has passed; Linux and hosted CI validation remain open. Phase 22 is outside this checkpoint.
 
 ## Documentation and development history
 
