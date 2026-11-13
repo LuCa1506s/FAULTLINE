@@ -1,0 +1,3 @@
+maps/*.svg -text
+DEMO_REPORT.txt -text
+SHA256SUMS.txt text eol=lf
