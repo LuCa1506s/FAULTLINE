@@ -1,0 +1,28 @@
+FAULTLINE - REPRODUCIBLE WORLD DEMO
+
+Engine commit: 96fcb11cf769c4f8d63c87b482478d5031905a35
+Seed: 12345
+Generator: 3
+SaveFormat: 14
+
+Day 30 StateHash: c934880b12e33bd3
+
+Day 365 resumed StateHash: 2a00844980b17f7e
+Day 365 direct StateHash:  2a00844980b17f7e
+
+Semantic StateHash match: True
+
+Day 365 resumed SHA256: FE44D41903D1D9DED2F39C71FB996764835C170446F3D7121E59AC290DF36557
+Day 365 direct SHA256:  FE44D41903D1D9DED2F39C71FB996764835C170446F3D7121E59AC290DF36557
+
+Binary save SHA256 match: True
+
+Artifacts:
+- day000.svg: initial generated world
+- day030.svg: world after 30 simulated days
+- day365.svg: world after 365 simulated days
+- day30.flsave: intermediate checkpoint
+- day365_resumed.flsave: resumed final state
+- day365_direct.flsave: uninterrupted final state
+
+All save files validated successfully.

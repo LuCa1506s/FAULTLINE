@@ -21,6 +21,27 @@ versioned saves and modular systems.
 > FAULTLINE is an active engine prototype with headless tools,
 > not a finished playable game.
 
+## Live simulation evidence
+
+Explore the [reproducible 365-day world demo](demo/README.md).
+
+![FAULTLINE procedural city](demo/maps/day030.svg)
+
+Five factions, 41 territories, 8,007 buildings and one
+persistent world evolving through autonomous simulation.
+
+- 883 faction operations over 365 simulated days.
+- 141 territorial control changes.
+- 385,418 NPC semantic updates.
+- Identical final StateHash and SHA-256 save digests
+  for uninterrupted and save/resume execution.
+
+[Day 0](demo/maps/day000.svg) |
+[Day 30](demo/maps/day030.svg) |
+[Day 365](demo/maps/day365.svg)
+
+[Reproduce the experiment and inspect the evidence](demo/README.md).
+
 ## What FAULTLINE does
 
 | System | Implemented foundation |
