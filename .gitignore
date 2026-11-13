@@ -75,3 +75,31 @@ __pycache__/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# FAULTLINE - Local development environment
+/FAULTLINE_GAME_V1/.tools/
+/FAULTLINE_GAME_V1/build/
+/FAULTLINE_GAME_V1/build-release/
+
+# Temporary automation backups
+/FAULTLINE_GAME_V1/automation/*.before-*
+
+# Local files pending publication review
+/FAULTLINE_GAME_V1/spawn_payload.json
+/FAULTLINE_GAME_V1/download_cli.ps1
+
+
+# FAULTLINE - Local development environment
+/FAULTLINE_GAME_V1/.tools/
+/FAULTLINE_GAME_V1/build/
+/FAULTLINE_GAME_V1/build-release/
+
+# Temporary automation backups
+/FAULTLINE_GAME_V1/automation/*.before-*
+
+# Local files pending publication review
+/FAULTLINE_GAME_V1/spawn_payload.json
+/FAULTLINE_GAME_V1/download_cli.ps1
+
+*.pyc
+*.pyo
