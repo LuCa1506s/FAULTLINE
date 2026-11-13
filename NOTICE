@@ -4,5 +4,28 @@ The original source code, tests, and technical documentation of FAULTLINE
 are licensed under the Apache License, Version 2.0, subject to the scope
 and exclusions described in LICENSING.md.
 
-Third-party attribution notices, where required, must be preserved.
-See THIRD_PARTY_LICENSES.md for the inventory and audit status.
+THIRD-PARTY ATTRIBUTIONS
+
+doctest 2.4.11
+Copyright (c) 2016-2023 Viktor Kirilov.
+Distributed under the MIT License.
+See FAULTLINE_GAME_V1/tests/vendor/LICENSE.txt.
+
+xoshiro256** 1.0
+Reference algorithm by David Blackman and Sebastiano Vigna (2018).
+https://prng.di.unimi.it/xoshiro256starstar.c
+
+SplitMix64
+Reference implementation by Sebastiano Vigna (2015).
+https://prng.di.unimi.it/splitmix64.c
+
+ColorBrewer
+Copyright (c) 2002 Cynthia Brewer, Mark Harrower,
+and The Pennsylvania State University.
+This product includes color specifications and designs
+developed by Cynthia Brewer (https://colorbrewer2.org/).
+
+See THIRD_PARTY_LICENSES.md for license details,
+external development tools, provenance and review status.
+
+Third-party materials retain their applicable upstream terms.
