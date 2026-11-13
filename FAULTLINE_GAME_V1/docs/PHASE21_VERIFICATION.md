@@ -175,3 +175,55 @@ All targets, including faultline_history, compiled and linked.
 
 This establishes the full Windows Release gate at the tested commit.
 Linux and hosted CI verification are not yet claimed.
+
+## Follow-up: Linux GitHub Actions Release verification
+
+Date: 2026-11-13.
+
+- Tested commit: `434acac`
+- Environment: Ubuntu 24.04, GitHub-hosted runner
+- Compiler: GCC 13.3.0
+- Configuration: Release, Ninja
+- Complete build: PASS
+- CTest: 42/42 passed, zero failures
+- Stress tests: 14/14 passed
+- Total CTest wall time: 277.60 seconds
+
+CI job:
+https://github.com/LuCa1506s/FAULTLINE/actions/runs/43418877514/job/131863580026
+
+The Linux build and full test suite passed without engine source changes.
+
+This establishes Linux verification for the tested revision.
+It does not establish universal cross-platform bit-for-bit equivalence.
+
+
+## Follow-up: Windows GitHub Actions Release verification
+
+Date: 2026-11-13.
+
+- Tested commit: `434acac`
+- Environment: Windows 2025, GitHub-hosted runner
+- Compiler: GCC 16.2.0 (w64devkit)
+- Configuration: Release, Ninja
+- Portable toolchain bootstrap: PASS
+- Complete build: 94/94 steps completed
+- CTest: 42/42 passed, zero failures
+- Stress tests: 14/14 passed
+- Total CTest wall time: 471.23 seconds
+
+CI job:
+https://github.com/LuCa1506s/FAULTLINE/actions/runs/43418877514/job/131863580271
+
+Both hosted Release jobs completed successfully:
+Windows 42/42 and Linux 42/42.
+
+The first full GitHub Actions run therefore completed
+84/84 CTest executions across both platforms.
+
+Complete CI run:
+https://github.com/LuCa1506s/FAULTLINE/actions/runs/43418877514
+
+These results establish successful builds and full-suite
+verification on the tested Windows and Linux environments,
+not universal cross-platform bit-for-bit equivalence.

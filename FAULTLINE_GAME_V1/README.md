@@ -32,7 +32,7 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-The commands use standard CMake tooling. A fresh GitHub clone passed the full Release gate on Windows; Linux verification is pending. Multi-configuration generators (such as Visual Studio) may place executables under `build/Debug/` or `build/Release/` instead of `build/`.
+The commands use standard CMake tooling. Full Release verification passed on Windows from a fresh GitHub clone and on Ubuntu 24.04 through GitHub Actions (42/42 CTest tests on each platform). Multi-configuration generators (such as Visual Studio) may place executables under `build/Debug/` or `build/Release/` instead of `build/`.
 
 ### Optional portable Windows toolchain
 
@@ -187,7 +187,7 @@ The [Phase 21 report](docs/PHASE21_VERIFICATION.md) records the following result
 | Additional deterministic collision cases | 5 passed |
 | Vehicle mass-run BatchHash | `51e56c4d84beb3ec` |
 
-These results are historical recorded evidence, not a fresh independent test run of the current GitHub commit. The report states that the full-tree build could not finish linking `faultline_history.exe` because another Windows process held the executable open. A subsequent clean-clone Release run on Windows passed all 42 CTest tests, including 14 stress tests. Cross-platform verification remains pending.
+These results are historical recorded evidence, not a fresh independent test run of the current GitHub commit. The report states that the full-tree build could not finish linking `faultline_history.exe` because another Windows process held the executable open. A subsequent clean-clone Release run on Windows passed all 42 CTest tests, including 14 stress tests. The subsequent Linux GitHub Actions run also passed 42/42 CTest tests.
 
 ## Persistence and determinism
 
@@ -209,7 +209,7 @@ Historical world-generation hash contracts remain unchanged: v1 `2938f0ca42162bc
 - Streaming uses fixed 512 m activation and 640 m deactivation radii; the driven vehicle is pinned. Velocity-based prefetch is deferred.
 - No inter-district vehicle travel/arrival scheduling, traffic density simulation, motorcycle/boat/aircraft gameplay, advanced tuning or police response vehicles is implemented in this checkpoint.
 - No production renderer or complete playable game is claimed. Map2D is a debug tool.
-- The Windows clean-clone Release gate has passed; Linux and hosted CI validation remain open. Phase 22 is outside this checkpoint.
+- The Windows clean-clone and Linux GitHub Actions Release gates have passed. Hosted Windows CI also passed all 42 CTest tests. Phase 22 is outside this checkpoint.
 
 ## Documentation and development history
 
@@ -230,4 +230,4 @@ Earlier phase reports are historical checkpoints; older version numbers and defe
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines. Preserve deterministic behavior, persistent identity and historical save compatibility; add reproducible tests for changes to simulation contracts.
 
-Original project code and technical documentation are licensed under [Apache License 2.0](../LICENSE), subject to the scope and exceptions in [LICENSING.md](../LICENSING.md). Third-party materials retain their own licenses; see [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md). The overall third-party inventory is still pending audit.
+Original project code and technical documentation are licensed under [Apache License 2.0](../LICENSE), subject to the scope and exceptions in [LICENSING.md](../LICENSING.md). Third-party materials retain their own licenses; see [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md). The identified third-party inventory is documented; remaining provenance and binary redistribution checks are tracked in the inventory.
