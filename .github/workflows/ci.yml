@@ -36,7 +36,28 @@ jobs:
           python-version: '3.12'
 
       - name: Bootstrap portable toolchain
-        run: python tools/bootstrap_windows.py
+        shell: pwsh
+        run: |
+          @'
+          import sys
+
+          sys.path.insert(0, "tools")
+          from bootstrap_windows import LOCAL, wheel
+
+          LOCAL.mkdir(exist_ok=True)
+          wheel("cmake", "4.4.4")
+          wheel("ninja", "1.13.2")
+          '@ | python -
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $tools = (Resolve-Path .tools).Path
+          $compiler = Join-Path $tools 'w64devkit-portable.exe'
+          curl.exe --fail --location --retry 3 --max-time 180 --output $compiler https://github.com/skeeto/w64devkit/releases/download/v2.10.1/w64devkit-x64-2.10.1.7z.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ((Get-FileHash -LiteralPath $compiler -Algorithm SHA256).Hash -ne 'add1edf984ce4d473cfeb7c52e0ab38db73a855bba6c7f564d5e16648eb2896a') {
+            throw 'Compiler checksum mismatch'
+          }
+          & $compiler -y "-o$tools"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Build and full test suite
         shell: powershell
