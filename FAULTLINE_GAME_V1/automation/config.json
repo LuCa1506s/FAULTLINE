@@ -30,7 +30,10 @@
                           "tools/build.ps1"
                       ],
     "fast_test_command":  [
-                              "C:\\Users\\admin\\Documents\\FAULTLINE\\FAULTLINE_GAME_V1\\.tools\\w64devkit\\bin\\ctest.exe",
+                              "cmd.exe",
+                              "/d",
+                              "/c",
+                              ".tools\\w64devkit\\bin\\ctest.exe",
                               "--test-dir",
                               "build",
                               "-C",

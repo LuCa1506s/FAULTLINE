@@ -1,0 +1,63 @@
+name: Prepare local-review distribution artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Prepare source archive and manylinux wheels
+        env:
+          CIBW_BUILD: cp312-manylinux_x86_64 cp314-manylinux_x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_TEST_EXTRAS: gym,test
+          CIBW_TEST_COMMAND: python -I -m pytest -q {project}/tests/python
+        run: |
+          python -m pip install build==1.6.1 twine==7.0.0 cibuildwheel==4.3.5
+          python -m build --sdist --outdir review-dist/source
+          python -m cibuildwheel --output-dir review-dist/linux
+          python -m twine check --strict review-dist/source/* review-dist/linux/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: faultline-linux-and-source-review
+          path: review-dist/
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    env:
+      CMAKE_GENERATOR: Visual Studio 17 2022
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build and check package metadata
+        run: |
+          python -m pip install twine==7.0.0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip wheel --no-deps -w review-dist/windows .
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $wheel = Get-ChildItem review-dist/windows -Filter '*.whl' | Select-Object -ExpandProperty FullName
+          python -m twine check --strict $wheel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: faultline-windows-${{ matrix.python }}-review
+          path: review-dist/windows/*.whl

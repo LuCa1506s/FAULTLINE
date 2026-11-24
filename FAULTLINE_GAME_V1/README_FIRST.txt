@@ -5,11 +5,11 @@ FAULTLINE CODEX AUTOPILOT — FIRST STEPS
 2) Run from the extracted folder:
 
 powershell -ExecutionPolicy Bypass -File .\install.ps1 `
-  -RepoPath "C:\Users\admin\Documents\FAULTLINE\FAULTLINE_GAME_V1"
+  -RepoPath "C:\path\to\FAULTLINE\FAULTLINE_GAME_V1"
 
 3) Then:
 
-cd C:\Users\admin\Documents\FAULTLINE\FAULTLINE_GAME_V1
+cd C:\path\to\FAULTLINE\FAULTLINE_GAME_V1
 powershell -ExecutionPolicy Bypass -File .\automation\prepare_repo.ps1
 
 4) Recommended smoke test — Phase 11 only:

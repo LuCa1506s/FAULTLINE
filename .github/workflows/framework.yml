@@ -1,0 +1,76 @@
+name: FAULTLINE framework
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            generator: Ninja
+          - os: windows-2025
+            generator: Visual Studio 17 2022
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      CMAKE_GENERATOR: ${{ matrix.generator }}
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Native SDK consumer
+        run: |
+          cmake -S . -B build-ci-framework -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build-ci-framework --config Release --target faultline_native_consumer
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ctest --test-dir build-ci-framework -C Release -R framework_native_consumer --output-on-failure --no-tests=error
+      - name: Build wheel
+        run: python -m pip wheel --no-deps --wheel-dir build-ci-wheels .
+      - name: Verify clean installation
+        run: |
+          $wheel = Get-ChildItem build-ci-wheels -Filter '*.whl' | Select-Object -First 1
+          if (-not $wheel) { throw 'Wheel is missing' }
+          $workspace = Join-Path $env:RUNNER_TEMP 'faultline-wheel-check'
+          New-Item -ItemType Directory -Path $workspace | Out-Null
+          $venv = Join-Path $workspace 'venv'
+          python -m venv $venv
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $cleanPython = if ($IsWindows) { Join-Path $venv 'Scripts/python.exe' } else { Join-Path $venv 'bin/python' }
+          & $cleanPython -m pip install "$($wheel.FullName)[gym,test]"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item tests/python/test_*.py,examples/python_quickstart.py,examples/navigation_agent.py -Destination $workspace
+          Push-Location $workspace
+          try {
+            & $cleanPython -I -m pytest -q
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            & $cleanPython -I python_quickstart.py
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            & $cleanPython -I navigation_agent.py
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            & $cleanPython -I -m faultline_sim benchmark --scenario adaptation --agent planning --episodes 2
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally {
+            Pop-Location
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framework-wheel-${{ matrix.os }}
+          path: build-ci-wheels/*.whl
+          if-no-files-found: error

@@ -96,13 +96,13 @@ If needed, launch `codex` once and finish the ChatGPT sign-in before starting au
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1 `
-  -RepoPath "C:\Users\admin\Documents\FAULTLINE\FAULTLINE_GAME_V1"
+  -RepoPath "C:\path\to\FAULTLINE\FAULTLINE_GAME_V1"
 ```
 
 ## 3. Prepare Git and create the Phase-10 baseline
 
 ```powershell
-cd C:\Users\admin\Documents\FAULTLINE\FAULTLINE_GAME_V1
+cd C:\path\to\FAULTLINE\FAULTLINE_GAME_V1
 powershell -ExecutionPolicy Bypass -File .\automation\prepare_repo.ps1
 ```
 

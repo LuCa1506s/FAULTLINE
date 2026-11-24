@@ -1,4 +1,47 @@
-# FAULTLINE
+# FAULTLINE — Deterministic Agent Simulation Framework
+
+**An open-source, CPU-only framework for reproducible AI agent evaluation in persistent simulated worlds.**
+
+FAULTLINE gives AI agent developers and researchers a way to compare policies
+under controlled conditions and reproduce failures in a persistent world. Its
+Python and C++ SDKs use the same authoritative C++20 engine as the original
+game. Reference policies and replay run on a CPU with no API credentials.
+
+## Install and run your first benchmark
+
+Use x64 CPython 3.12 or 3.14 on Windows or Linux with glibc 2.39 or newer.
+Once the prerelease is on PyPI, install it with the `gym` extra. For an
+installation from the review kit or source, follow the [quick start](docs/agent_framework/QUICK_START.md).
+
+```sh
+python -m pip install 'faultline-sim[gym]==0.1.0b2'
+python -I -m faultline_sim.scientific run --scenario navigation --level EASY --agent planning --seed 42 --episodes 1 --traces traces
+python -I -m faultline_sim.scientific replay traces/navigation-EASY-planning-42.json
+```
+
+Implement a policy that maps the public observation to a discrete action.
+The [independent consumer](examples/consumer_project/README.md) demonstrates
+how to plug in a custom policy, export its actions and replay a failure.
+Use the [Python SDK](docs/agent_framework/PYTHON_SDK.md),
+[C++ SDK](docs/agent_framework/CPP_SDK.md) and
+[replay guide](docs/agent_framework/REPRODUCIBILITY.md) for API details.
+
+## Verified scope
+
+- The local qualification verified 4,800 recorded route episodes against
+  the tested runtime. On those tasks, the graph planner reached the success
+  ceiling and random stayed at the floor. The budget observation can correlate
+  with hidden route costs. [Scientific results](docs/agent_framework/SCIENTIFIC_RESULTS.md)
+- A local SmolLM2 experiment verified inference, action validation and replay
+  on one development seed. Its schema-constrained policy exhausted the route
+  budget with zero goals reached. [Model evidence](docs/agent_framework/RELEASE_QUALIFICATION.md)
+- Replay checks the matching native build, platform and dependency versions.
+  Cross-platform bit-for-bit equivalence is outside the verified scope.
+  See the [determinism contract](docs/agent_framework/DETERMINISM.md),
+  [distribution matrix](docs/agent_framework/DISTRIBUTION.md) and
+  [contributor guide](CONTRIBUTING.md).
+
+## Original game and engine
 
 **Build a world that remembers.**
 

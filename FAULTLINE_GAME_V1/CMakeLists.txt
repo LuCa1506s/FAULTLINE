@@ -24,7 +24,7 @@ target_link_libraries(faultline_world PUBLIC faultline_core)
 faultline_warnings(faultline_world)
 add_library(faultline_simulation src/simulation/runtime/game.cpp src/simulation/factions/faction_system.cpp src/simulation/npc/npc_system.cpp src/simulation/npc/character_ai.cpp src/simulation/territory/territory_system.cpp src/simulation/market/market_system.cpp src/simulation/history/history_system.cpp src/simulation/story/story_system.cpp src/simulation/missions/mission_system.cpp src/simulation/prologue/prologue_system.cpp src/simulation/player/player_system.cpp src/simulation/combat/combat_system.cpp src/simulation/police/police_system.cpp src/simulation/vehicles/vehicle_system.cpp)
 target_link_libraries(faultline_simulation PUBLIC faultline_world)
-target_sources(faultline_simulation PRIVATE src/simulation/story/story_system.cpp)
+# story_system.cpp is already included in faultline_simulation.
 faultline_warnings(faultline_simulation)
 add_library(faultline_persistence src/persistence/save.cpp)
 target_link_libraries(faultline_persistence PUBLIC faultline_simulation)

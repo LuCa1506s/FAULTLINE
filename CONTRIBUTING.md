@@ -6,6 +6,20 @@ FAULTLINE is under active development. The design specifications contain both im
 
 ## Getting started
 
+For changes to the agent framework, configure CMake from the repository root.
+Build `faultline_native_consumer` and run `ctest -R framework_native_consumer`.
+Use the installed-wheel test procedure for changes to Python. Include the seed,
+scenario version and expected outcome for benchmark changes. Use development
+seeds while tuning. See the [framework quick start](docs/agent_framework/QUICK_START.md)
+and [benchmark contract](docs/agent_framework/BENCHMARKS.md).
+
+For route challenges, compare proposed changes on development seeds and
+record the protocol before a held-out run. Check action replay and native
+state hashes. Use an isolated wheel consumer for Python changes and include
+the exact Python and dependency versions in your report. See the
+[scientific protocol](docs/agent_framework/SCIENTIFIC_PROTOCOL.md) and
+[independent consumer procedure](docs/agent_framework/EXTERNAL_CONSUMER.md).
+
 1. Read the root [README.md](README.md) and the relevant technical specification.
 2. Check existing GitHub issues and pull requests before starting work. For substantial architectural changes, open an issue first to discuss scope and trade-offs.
 3. Fork the repository, clone your fork, and create a focused branch from the default branch.

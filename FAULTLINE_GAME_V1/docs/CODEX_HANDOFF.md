@@ -2,7 +2,7 @@
 
 ## Repository checkpoint
 
-- Repository: `C:\Users\admin\Documents\FAULTLINE\FAULTLINE_GAME_V1`
+- Repository: `C:\path\to\FAULTLINE\FAULTLINE_GAME_V1`
 - Branch: `master`
 - Phase 20 starting HEAD: `a19439e Docs: Add Codex handoff`
 - Latest committed canonical gameplay phase: `33f798a Phase 19: Combat`
@@ -15,7 +15,7 @@ reset, clean, stash, discard, or overwrite it.
 
 ## Canon and authority
 
-Canonical parent specifications under `C:\Users\admin\Documents\FAULTLINE` are
+Canonical parent specifications under `C:\path\to\FAULTLINE` are
 read-only. `POLICE_WANTED_STATE_MACHINE_SPEC.md` is the primary Phase 20 authority.
 Also read `AGENTS.md`, `DEVELOPMENT_STATUS.md`, the requested phase file, and current
 code. Canon/current code override this handoff.

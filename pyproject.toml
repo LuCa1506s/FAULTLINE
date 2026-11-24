@@ -1,0 +1,39 @@
+[build-system]
+requires = ["scikit-build-core==0.12.2", "pybind11==3.1.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "faultline-sim"
+version = "0.1.0b2"
+description = "Deterministic agent simulation in persistent procedural worlds"
+readme = "docs/agent_framework/PYTHON_SDK.md"
+requires-python = ">=3.12,!=3.13.*,<3.15"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "LICENSING.md", "THIRD_PARTY_LICENSES.md", "docs/agent_framework/third_party/pybind11.LICENSE"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+gym = ["gymnasium>=1.1,<2", "numpy>=1.26,<3"]
+
+[project.urls]
+Repository = "https://github.com/LuCa1506s/FAULTLINE"
+
+[project.scripts]
+faultline-sim = "faultline_sim.__main__:main"
+
+[tool.scikit-build]
+cmake.version = ">=3.20"
+cmake.args = ["-DFAULTLINE_BUILD_PYTHON=ON", "-DBUILD_TESTING=OFF"]
+build.targets = ["_native"]
+install.components = ["python"]
+wheel.packages = ["python/faultline_sim"]
+sdist.exclude = ["*"]
+sdist.include = [
+  "CMakeLists.txt", "pyproject.toml", "LICENSE", "NOTICE", "LICENSING.md", "THIRD_PARTY_LICENSES.md",
+  "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "ROADMAP.md",
+  "requirements/qualification.txt", "docs/agent_framework/*.md", "docs/agent_framework/third_party/pybind11.LICENSE",
+  "python/bindings.cpp", "python/faultline_sim/*.py", "python/faultline_sim/*.pyi", "python/faultline_sim/py.typed",
+  "sdk/**", "examples/*.py", "tests/python/*.py", "tests/native_consumer/*",
+  "FAULTLINE_GAME_V1/CMakeLists.txt", "FAULTLINE_GAME_V1/src/**", "FAULTLINE_GAME_V1/tools/**",
+  "FAULTLINE_GAME_V1/tests/**",
+]
